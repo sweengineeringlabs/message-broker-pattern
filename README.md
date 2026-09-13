@@ -34,10 +34,11 @@ Extracted from [`edge-message-broker`](https://github.com/sweengineeringlabs/edg
 per [edge-message-broker#6](https://github.com/sweengineeringlabs/edge-message-broker/issues/6).
 Originally a three-crate `contract`/`core`/`saf` split mirroring
 [`wasm-capability-pattern`](https://github.com/sweengineeringlabs/wasm-capability-pattern);
-flattened to this single crate, with `core`/`saf` and all backend-selection vocabulary
-(`BackendKind`, `MessageBrokerConfig`) moved to `message-broker-svc` — see ADR-001's
-amendment. `cargo test`, `cargo fmt --check`, and `cargo clippy --all-targets -- -D
-warnings` all clean; dependency footprint is exactly `futures` + `thiserror`.
+flattened to this single crate, with `core`/`saf` moved to `message-broker-svc` and all
+backend-selection vocabulary (`BackendKind`, `MessageBrokerConfig`) deleted outright, not
+relocated — see ADR-001's amendments. `cargo test`, `cargo fmt --check`, and `cargo
+clippy --all-targets -- -D warnings` all clean; dependency footprint is exactly
+`futures` + `thiserror`.
 
 ## Documentation
 
