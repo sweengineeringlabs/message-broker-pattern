@@ -5,17 +5,18 @@
 ```
 message-broker-pattern/
 ├── README.md
-├── scm/
-│   ├── Cargo.toml          # workspace: [main/message-broker/{contract,core,saf}]
-│   ├── docs/
-│   │   ├── README.md                            # WHAT + WHY
-│   │   ├── 3-design/architecture.md
-│   │   ├── 3-design/adr/ADR-001-contract-core-saf-split.md
-│   │   └── 4-development/developer_guide.md     # this file
-│   └── main/message-broker/
-│       ├── contract/       # message-broker-pattern-contract -- traits/types, zero implementation
-│       ├── core/            # message-broker-pattern-core -- NoopMessageBroker/NoopValidator/MessageBrokerConfig
-│       └── saf/              # message-broker-pattern-saf -- BrokerSvc facade
+├── docs/
+│   ├── README.md                                 # docs section index
+│   ├── 0-ideation/papers/README.md
+│   ├── 3-design/README.md, architecture.md
+│   ├── 3-design/adr/ADR-001-contract-core-saf-split.md
+│   └── 4-development/README.md, developer_guide.md   # this file
+└── scm/
+    ├── Cargo.toml          # workspace: [main/message-broker/{contract,core,saf}]
+    └── main/message-broker/
+        ├── contract/       # message-broker-pattern-contract -- traits/types, zero implementation
+        ├── core/            # message-broker-pattern-core -- NoopMessageBroker/NoopValidator/MessageBrokerConfig
+        └── saf/              # message-broker-pattern-saf -- BrokerSvc facade
 ```
 
 ## Branching and Releases
