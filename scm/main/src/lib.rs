@@ -20,6 +20,7 @@ mod vo;
 
 pub use dto::{
     HealthCheckRequest, PublishRequest, SubscribeRequest, SubscribeResponse, ValidationRequest,
+    ValidatorRequest, ValidatorResponse,
 };
 pub use error::{BrokerError, ValidationError};
 pub use traits::{MessageBroker, Validator};
