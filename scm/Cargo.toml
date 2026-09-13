@@ -16,7 +16,7 @@ service_type     = "message-broker"
 
 [lib]
 name = "message_broker_pattern"
-path = "main/src/lib.rs"
+path = "src/lib.rs"
 
 [dependencies]
 futures   = "0.3"

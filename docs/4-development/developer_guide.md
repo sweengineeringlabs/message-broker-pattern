@@ -14,7 +14,7 @@ message-broker-pattern/
 └── scm/
     ├── Cargo.toml          # [package] message-broker-pattern -- a single crate,
     │                       #  not a workspace
-    ├── main/src/
+    ├── src/
     │   ├── lib.rs
     │   ├── traits/          # MessageBroker, Validator
     │   ├── vo/               # Message
@@ -25,10 +25,10 @@ message-broker-pattern/
                                 #  message_broker_int_test.rs, broker_error_int_test.rs
 ```
 
-Matches `configbuilder`'s own single-crate layout (`[package]` directly in
-`scm/Cargo.toml`, `path = "main/src/lib.rs"`, tests at `scm/tests/`) — this repo was a
-three-crate `contract`/`core`/`saf` workspace originally; see ADR-001's amendment for
-why it collapsed to one.
+`src/` and `tests/` are direct siblings under `scm/` — no `main/` intermediate directory
+(flattened further than `configbuilder`'s own `main/src/` layout; see ADR-001's amendment
+for why). This repo was a three-crate `contract`/`core`/`saf` workspace originally; see
+ADR-001's first amendment for why it collapsed to one.
 
 ## Branching and Releases
 
@@ -58,11 +58,15 @@ anything else shows up, it's a regression, not a feature. `#![deny(unsafe_code)]
 Enforced by design, not just convention: this crate must never gain a type that names a
 specific backend technology (an enum listing `Nats`/`Kafka`/`Postgres`, a field named
 after one backend's own concept like `group_id`/`queue_name`, anything of that shape).
-That vocabulary — `BackendKind`, `MessageBrokerConfig` — lives entirely in
-`message-broker-svc-core` instead, and stays a real, zero-cost `enum`/`struct` there,
-not a genericized `String`/`HashMap` stand-in kept here. See ADR-001's amendment for the
-full reasoning: the set of backends is closed and known by whoever builds `-svc`, which
-is exactly when a real enum beats a generic, stringly-typed placeholder.
+The original `BackendKind`/`MessageBrokerConfig` vocabulary was deleted outright, not
+relocated — each `message-broker-svc` `spi` crate now defines its own local config type
+(`NatsConfig`/`KafkaConfig`/`PostgresConfig`/`InMemoryConfig`), independently
+implementing this crate's own `Validator`. No shared config/backend-selector type exists
+anywhere in either repo. See `message-broker-svc`'s own ADR-001 amendment for the full
+reasoning: the set of backends is closed and known by whoever builds `-svc`, which is
+exactly when a real enum would beat a generic, stringly-typed placeholder — but the
+right call was recognizing this vocabulary belongs entirely on the tech-aware side of
+the boundary, one independent type per backend, not a single shared type anywhere.
 
 ## See Also
 

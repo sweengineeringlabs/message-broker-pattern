@@ -142,4 +142,28 @@ Verified: `cargo tree --depth 1` shows exactly `futures` + `thiserror`, nothing 
 `backend_kind_int_test.rs`'s 6, moved with `BackendKind`). `cargo fmt --check` and
 `cargo clippy --all-targets -- -D warnings` both clean.
 
+## Amendment: 2026-09-13 -- flatten `main/src/` to `src/`; correct a stale claim above
+
+**Correction**: the Decision section above states `BackendKind`/`MessageBrokerConfig`
+"moved out entirely too, into `message-broker-svc-core`". That is not what happened.
+`message-broker-svc`'s own ADR-001 (its later amendment, dated the same day) is the
+authoritative record: both types were deleted outright, never relocated into any crate
+-- `message-broker-svc-core` (which did not exist yet when this repo's amendment above
+was written) contains only `validate_config`/`validator_response`, two generic helper
+functions bound by this crate's own `Validator` trait, never `BackendKind` or
+`MessageBrokerConfig` in any form. Left the original text above unedited, per this
+repo's own convention of dated amendments rather than rewriting past decisions --
+correcting it here instead.
+
+**Decision**: flattened `main/src/` to `src/` -- `src/` and `tests/` are now direct
+siblings under `scm/`, with no `main/` intermediate directory at all. This goes one
+step further than `configbuilder`'s own layout (`main/src/`), which this repo's
+original flatten amendment matched exactly; the further flattening was requested
+directly, not derived from new precedent. `Cargo.toml`'s `[lib] path` updated from
+`"main/src/lib.rs"` to `"src/lib.rs"`; no other change.
+
+Verified: `cargo build/test` clean (same 9 tests + 1 doctest -- no test path
+referenced `main/`). `cargo fmt --check` and `cargo clippy --all-targets -- -D
+warnings` both clean.
+
 [← Docs index](../../README.md)
