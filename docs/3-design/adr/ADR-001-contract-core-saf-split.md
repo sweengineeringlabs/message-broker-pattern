@@ -142,4 +142,62 @@ Verified: `cargo tree --depth 1` shows exactly `futures` + `thiserror`, nothing 
 `backend_kind_int_test.rs`'s 6, moved with `BackendKind`). `cargo fmt --check` and
 `cargo clippy --all-targets -- -D warnings` both clean.
 
+## Amendment: 2026-09-13 -- remove `MessageBroker::validator`, `ValidatorRequest`/`ValidatorResponse`
+
+While reviewing this design against `ledger`'s `LedgerPayload` (a trait declared in
+`ledger-base-port`, with every leaf port trait -- `LedgerWriter<P>`/`LedgerReader<P>`/
+`LedgerVerifier<P>` -- generic over `P: LedgerPayload`, so the data flowing through
+every real operation is required, at compile time, to satisfy a trait the contract
+itself owns), a mismatch surfaced in this crate's own `MessageBroker::validator`
+method, added when `NatsConfig`/`KafkaConfig`/`PostgresConfig` were designed (see
+`message-broker-svc`'s own ADR-001 amendment): a `validator(&self, ...) ->
+Result<ValidatorResponse, BrokerError>` accessor returning `ValidatorResponse {
+validator: Arc<dyn Validator> }`.
+
+**Why this was wrong, concretely (not just in the abstract)**: grepping
+`message-broker-svc` for every call site of `.validator(` and `ValidatorResponse`
+turned up exactly four -- the four trait `impl` blocks (`nats`/`kafka`/`postgres`/
+`noop`) that were required to implement it. Nothing ever called it: no test, no
+factory method, no consumer. Two real bugs were hiding behind it: `NatsMessageBroker::
+connect` ran its own ad hoc `url.trim().is_empty()` check instead of calling
+`NatsConfig`'s own `Validator::validate`, and `KafkaMessageBroker::new`/
+`PostgresMessageBroker::connect` performed no config validation at all before handing
+raw strings to their underlying clients. `Validator` was implemented on all three
+config types but only ever exercised through `configbuilder`'s TOML-loading path and
+unit tests -- never on the actual construction path a real caller uses
+(`MessageBrokerFactory::nats/kafka/postgres`).
+
+The root cause: `validator()` was added specifically to be able to say "the config
+type maps back to a trait declared in the pattern," in the wake of being pushed to
+find a `LedgerPayload`-shaped analog. But `LedgerPayload`'s value comes from being a
+generic parameter on the contract's *operational* traits -- the data flowing through
+every real call (write/read/verify) is bound by it. Broker config is not that kind of
+data: it's consumed once, at construction, and never flows through `publish`/
+`subscribe`/`health_check` again -- there's nothing recurring per-call to genericize
+`MessageBroker` over. Bolting on an unused accessor method to manufacture a "trait
+mapping" was decoration, not the structural mechanic `LedgerPayload` actually provides
+-- a `Registry<T: Named>`/`RuntimePhase`-style precedent check would have caught this
+the same way it did for `BackendKind`: ask whether the trait's own method signatures
+structurally require the addition, not whether it's possible to make some trait
+technically apply.
+
+**Decision**: deleted `MessageBroker::validator`, `ValidatorRequest`, and
+`ValidatorResponse` outright. `Validator` itself is unaffected -- it remains a real,
+minimal self-check trait (`validate(&self, ValidationRequest) -> Result<(),
+ValidationError>`), unchanged. `message-broker-svc`'s own amendment wires each
+backend's `Validator::validate` impl into its actual constructor
+(`NatsMessageBroker::connect`/`KafkaMessageBroker::new`/`PostgresMessageBroker::
+connect`), replacing the ad hoc/missing validation with one real call each -- the one
+place `Validator` was already correctly load-bearing (`MessageBrokerFactory::
+validate<V: Validator>`) needed no change.
+
+**Consequences**: `MessageBroker`'s trait surface shrinks to exactly the three
+operations a broker performs (`publish`/`subscribe`/`health_check`); no dead trait
+method remains to give a false impression of a `LedgerPayload`-style generic
+relationship that this domain doesn't structurally have.
+
+Verified: `cargo build/test` clean (same 9 tests + 1 doctest -- no test depended on
+the removed items). `cargo fmt --check` and `cargo clippy --all-targets -- -D
+warnings` both clean.
+
 [← Docs index](../../README.md)

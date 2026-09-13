@@ -6,11 +6,11 @@ One crate, `message-broker-pattern` — the `MessageBroker`/`Validator` traits a
 minimal vocabulary their signatures require, zero implementation, zero knowledge of any
 backend technology:
 
-- **`traits/`** — `MessageBroker` (`publish`/`subscribe`/`health_check`/`validator`),
+- **`traits/`** — `MessageBroker` (`publish`/`subscribe`/`health_check`),
   `Validator` (`validate`).
 - **`vo/`** — `Message` (payload + headers), the currency the trait passes around.
 - **`dto/`** — `PublishRequest`/`SubscribeRequest`/`SubscribeResponse`/
-  `HealthCheckRequest`/`ValidatorRequest`/`ValidatorResponse`/`ValidationRequest`.
+  `HealthCheckRequest`/`ValidationRequest`.
 - **`error/`** — `BrokerError`, `ValidationError`.
 - **`types/`** — `BrokerFuture` (the async return type every `MessageBroker` method
   uses — needs only `std::future::Future`), `MessageStream` (needs `futures::Stream`
@@ -35,16 +35,14 @@ flowchart TD
     end
 
     subgraph svc["message-broker-svc"]
-        core["message-broker-svc-core<br/>NoopMessageBroker, NoopValidator,<br/>BackendKind, MessageBrokerConfig"]
-        spi["message-broker-svc-{nats,kafka,postgres}-spi"]
-        saf["message-broker-svc-saf<br/>MessageBrokerFactory"]
+        spi["message-broker-svc-{nats,kafka,postgres}-spi<br/>NatsConfig, KafkaConfig, PostgresConfig<br/>(each implements Validator)"]
+        saf["message-broker-svc-saf<br/>NoopMessageBroker, MessageBrokerFactory"]
     end
 
-    core -.->|implements| traits
     spi -.->|implements| traits
-    core -.->|depends on| vo
-    core -.->|depends on| dto
-    saf -.->|wires| core
+    saf -.->|implements| traits
+    spi -.->|depends on| vo
+    spi -.->|depends on| dto
     saf -.->|wires| spi
 ```
 

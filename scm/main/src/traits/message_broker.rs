@@ -2,7 +2,7 @@
 
 use crate::{
     BrokerError, BrokerFuture, HealthCheckRequest, PublishRequest, SubscribeRequest,
-    SubscribeResponse, ValidatorRequest, ValidatorResponse,
+    SubscribeResponse,
 };
 
 /// Cross-process publish/subscribe broker contract.
@@ -41,9 +41,4 @@ pub trait MessageBroker: Send + Sync {
         &self,
         request: HealthCheckRequest,
     ) -> BrokerFuture<'_, Result<(), BrokerError>>;
-
-    /// Return a handle to this broker's own config validator, so a caller can
-    /// revalidate a live broker's configuration (e.g. for health dashboards or
-    /// hot-reload checks) without naming the concrete config type.
-    fn validator(&self, request: ValidatorRequest) -> Result<ValidatorResponse, BrokerError>;
 }
