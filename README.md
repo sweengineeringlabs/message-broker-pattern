@@ -32,6 +32,8 @@ Ported from `edge-message-broker` per
 |----------|--------------|
 | [Overview](scm/docs/README.md) | WHAT + WHY |
 | [Architecture](scm/docs/3-design/architecture.md) | Component diagram, crate boundaries |
+| [ADR-001](scm/docs/3-design/adr/ADR-001-contract-core-saf-split.md) | Why this repo is shaped as contract/core/saf |
+| [Developer Guide](scm/docs/4-development/developer_guide.md) | Repo layout, branching, working on a crate |
 
 ## License
 
