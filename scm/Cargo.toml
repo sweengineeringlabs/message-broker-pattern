@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = [
+    "main/message-broker/contract",
+    "main/message-broker/core",
+    "main/message-broker/saf",
+]
