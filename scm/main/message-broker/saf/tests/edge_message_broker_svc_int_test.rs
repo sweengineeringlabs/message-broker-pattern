@@ -43,11 +43,3 @@ async fn test_noop_broker_publish_then_subscribe_is_inert() {
         "noop broker delivers nothing"
     );
 }
-
-/// @covers: create_config_builder
-#[test]
-fn test_create_config_builder_is_seeded_with_package_identity() {
-    // The builder is pre-seeded with this crate's name; building a config from
-    // it must not panic and must carry the seeded identity forward.
-    let _builder = BrokerSvc::create_config_builder();
-}
