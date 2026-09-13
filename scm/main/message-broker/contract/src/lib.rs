@@ -1,6 +1,26 @@
-//! `message-broker-pattern-contract` — placeholder scaffold.
+//! `message-broker-pattern-contract` — runtime-agnostic message-broker contract.
 //!
-//! This crate will hold the `MessageBroker`/`Validator` trait shapes and
-//! `Message`/`BackendKind`/`*Request`/`*Response` types currently declared in
-//! `edge-message-broker`'s `api/` module tree. Porting that content is tracked
-//! in this repo's own migration issue (linked from edge-message-broker#6).
+//! Provides the [`MessageBroker`]/[`Validator`] traits, the message/stream/error
+//! value types, and the `*Request`/`*Response` DTOs. Zero implementation of any
+//! named backend — see `message-broker-pattern-core` for this pattern's own
+//! default (no-op) implementation, and `message-broker-svc` for technology-specific
+//! backends (NATS, Kafka, Postgres).
+//!
+//! Ported from `edge-message-broker` per edge-message-broker#6.
+
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+
+mod dto;
+mod error;
+mod traits;
+mod types;
+mod vo;
+
+pub use dto::{
+    HealthCheckRequest, PublishRequest, SubscribeRequest, SubscribeResponse, ValidationRequest,
+    ValidatorRequest, ValidatorResponse,
+};
+pub use error::{BrokerError, ValidationError};
+pub use traits::{MessageBroker, Validator};
+pub use types::{BrokerFuture, MessageStream};
+pub use vo::{BackendKind, Message};

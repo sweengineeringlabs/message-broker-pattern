@@ -18,6 +18,7 @@ for the full rationale, and
 [`wasm-capability-pattern`](https://github.com/sweengineeringlabs/wasm-capability-pattern)
 for the precedent this repo's shape mirrors.
 
-**Status:** scaffold only. Architecture diagrams, an ADR documenting the split, and a
-developer guide land as part of this repo's own migration issue (linked from
-edge-message-broker#6) once the real contract/core/saf content is ported over.
+**Status:** contract/core/saf content is ported and passing (`cargo test --workspace`
+clean). Architecture diagrams, an ADR documenting the split, and a developer guide are
+still open — tracked in this repo's own migration issue (linked from
+edge-message-broker#6).

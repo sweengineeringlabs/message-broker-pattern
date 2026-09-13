@@ -1,8 +1,12 @@
-//! `message-broker-pattern-saf` — placeholder scaffold.
+//! `message-broker-pattern-saf` — the sole consumer-facing construction seam
+//! for this pattern's own default `MessageBroker`/`Validator` implementation.
+//! A downstream consumer depends on this crate (plus
+//! `message-broker-pattern-contract`) alone — never on
+//! `message-broker-pattern-core` directly — and never constructs
+//! `NoopMessageBroker`/`NoopValidator` itself.
 //!
-//! This crate will hold `BrokerSvc` (or its renamed equivalent), the sole
-//! composition root wiring `message-broker-pattern-core`'s implementation
-//! behind `message-broker-pattern-contract`'s traits, ported from
-//! `edge-message-broker`'s `saf/` module tree. Porting that content is
-//! tracked in this repo's own migration issue (linked from
-//! edge-message-broker#6).
+//! Ported from `edge-message-broker` per edge-message-broker#6.
+
+mod broker_svc;
+
+pub use broker_svc::BrokerSvc;

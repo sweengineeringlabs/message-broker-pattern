@@ -21,9 +21,10 @@ A technology-specific implementation (NATS, Kafka, Postgres) belongs in
 [`message-broker-svc`](https://github.com/sweengineeringlabs/message-broker-svc) instead
 — this repo has no knowledge of, and no dependency on, any of its consumers.
 
-**Status:** scaffold only — real trait/type content is being ported from
-`edge-message-broker`. Track progress via this repo's migration issue (linked from
-[edge-message-broker#6](https://github.com/sweengineeringlabs/edge-message-broker/issues/6)).
+Ported from `edge-message-broker` per
+[edge-message-broker#6](https://github.com/sweengineeringlabs/edge-message-broker/issues/6).
+`cargo build/test --workspace`, `cargo fmt --check`, and `cargo clippy --workspace
+--all-targets -- -D warnings` all clean.
 
 ## Documentation
 

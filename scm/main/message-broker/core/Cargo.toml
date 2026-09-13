@@ -20,6 +20,12 @@ path = "src/lib.rs"
 
 [dependencies]
 message-broker-pattern-contract = { version = "0.1.0", path = "../contract" }
+configbuilder                   = "0.8"
+futures                         = "0.3"
+serde                           = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.27"
 
 [lints.rust]
 unsafe_code  = "deny"

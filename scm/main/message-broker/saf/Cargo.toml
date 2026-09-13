@@ -21,6 +21,11 @@ path = "src/lib.rs"
 [dependencies]
 message-broker-pattern-contract = { version = "0.1.0", path = "../contract" }
 message-broker-pattern-core     = { version = "0.1.0", path = "../core" }
+configbuilder                   = "0.8"
+
+[dev-dependencies]
+tokio   = { version = "1.52", features = ["rt-multi-thread", "macros"] }
+futures = "0.3"
 
 [lints.rust]
 unsafe_code  = "deny"
