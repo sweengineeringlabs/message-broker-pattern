@@ -35,9 +35,9 @@ ADR-001's first amendment for why it collapsed to one.
 - `dev` is the default branch; all work lands there first.
 - `main` gets fast-forwarded to `dev` after a shipped change, not on every commit.
 - Pre-1.0 SemVer: a breaking change bumps the minor version.
-- Not yet tagged or published to crates.io — downstream consumers (e.g.
-  `message-broker-svc`) resolve this repo via `git`, `branch = "dev"`, until a tag cut
-  happens.
+- Published to crates.io as [`message-broker-pattern`](https://crates.io/crates/message-broker-pattern)
+  v0.1.0. Downstream consumers (e.g. `message-broker-svc`) depend on it by version, not
+  `git`. Not yet tagged in this repo's own git history — a `v0.1.0` tag should follow.
 
 ## Working on This Crate
 
