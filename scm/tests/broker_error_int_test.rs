@@ -1,6 +1,6 @@
 //! Integration tests for [`BrokerError`].
 
-use message_broker_pattern_contract::BrokerError;
+use message_broker_pattern::BrokerError;
 
 /// @covers: BrokerError::Publish
 #[test]

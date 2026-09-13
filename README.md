@@ -1,47 +1,52 @@
 # message-broker-pattern
 
-> **TLDR:** A reusable message-broker pattern — `MessageBroker`/`Validator` traits, plus
-> a zero-external-technology reference implementation. See
-> [Architecture](docs/3-design/architecture.md) for the full design.
+> **TLDR:** The reusable message-broker pattern — `MessageBroker`/`Validator` traits and
+> the minimal vocabulary they require, zero implementation, zero knowledge of any
+> backend technology. See [Architecture](docs/3-design/architecture.md) for the full
+> design.
 
-Pattern crate, not a broker deployment — zero backend-specific technology (no NATS, no
-Kafka, no Postgres). A consumer depends on this crate's `saf` for the reference no-op
-broker, or on [`message-broker-svc`](https://github.com/sweengineeringlabs/message-broker-svc)
-for a real technology-specific backend.
+A single crate, not a workspace, not a broker deployment. Implement `MessageBroker` to
+plug in any backend; this repo ships none — see
+[`message-broker-svc`](https://github.com/sweengineeringlabs/message-broker-svc) for a
+no-op reference broker and real NATS/Kafka/Postgres backends.
 
 ## Quick Start
 
 ```rust
-use message_broker_pattern_contract::{HealthCheckRequest, MessageBroker};
-use message_broker_pattern_saf::BrokerSvc;
+use message_broker_pattern::{HealthCheckRequest, MessageBroker};
 
-let broker = BrokerSvc::noop_broker();
-broker.health_check(HealthCheckRequest).await?;
+async fn check(broker: &dyn MessageBroker) -> Result<(), message_broker_pattern::BrokerError> {
+    broker.health_check(HealthCheckRequest).await
+}
 ```
 
-## Crates
+## What's Here
 
-| Crate | What it is |
-|-------|------------|
-| [`message-broker-pattern-contract`](scm/main/message-broker/contract) | Trait/type surface only |
-| [`message-broker-pattern-core`](scm/main/message-broker/core) | Default `NoopMessageBroker`/`NoopValidator` implementation |
-| [`message-broker-pattern-saf`](scm/main/message-broker/saf) | Facade — the recommended entry point for consumers |
+| Module | What it is |
+|--------|------------|
+| `traits/` | `MessageBroker`, `Validator` |
+| `vo/` | `Message` |
+| `dto/` | `*Request`/`*Response` types |
+| `error/` | `BrokerError`, `ValidationError` |
+| `types/` | `BrokerFuture`, `MessageStream` |
 
 Extracted from [`edge-message-broker`](https://github.com/sweengineeringlabs/edge-message-broker)
-per [edge-message-broker#6](https://github.com/sweengineeringlabs/edge-message-broker/issues/6),
-mirroring this org's existing `<name>-pattern`/`<name>-svc` split (see
-[`wasm-capability-pattern`](https://github.com/sweengineeringlabs/wasm-capability-pattern)).
-`cargo build/test --workspace`, `cargo fmt --check`, and `cargo clippy --workspace
---all-targets -- -D warnings` all clean.
+per [edge-message-broker#6](https://github.com/sweengineeringlabs/edge-message-broker/issues/6).
+Originally a three-crate `contract`/`core`/`saf` split mirroring
+[`wasm-capability-pattern`](https://github.com/sweengineeringlabs/wasm-capability-pattern);
+flattened to this single crate, with `core`/`saf` and all backend-selection vocabulary
+(`BackendKind`, `MessageBrokerConfig`) moved to `message-broker-svc` — see ADR-001's
+amendment. `cargo test`, `cargo fmt --check`, and `cargo clippy --all-targets -- -D
+warnings` all clean; dependency footprint is exactly `futures` + `thiserror`.
 
 ## Documentation
 
 | Document | Description |
 |----------|--------------|
 | [Docs index](docs/README.md) | Full documentation index |
-| [Architecture](docs/3-design/architecture.md) | Component diagram, crate boundaries |
-| [ADR-001](docs/3-design/adr/ADR-001-contract-core-saf-split.md) | Why this repo is shaped as contract/core/saf |
-| [Developer Guide](docs/4-development/developer_guide.md) | Repo layout, branching, working on a crate |
+| [Architecture](docs/3-design/architecture.md) | Component diagram, dependency rationale |
+| [ADR-001](docs/3-design/adr/ADR-001-contract-core-saf-split.md) | Why this repo is a single crate, why BackendKind isn't here |
+| [Developer Guide](docs/4-development/developer_guide.md) | Repo layout, branching, working on this crate |
 
 ## License
 

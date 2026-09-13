@@ -1,6 +1,6 @@
 //! Integration tests for [`Message`].
 
-use message_broker_pattern_contract::Message;
+use message_broker_pattern::Message;
 
 /// @covers: Message::new
 #[test]

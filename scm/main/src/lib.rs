@@ -1,10 +1,12 @@
-//! `message-broker-pattern-contract` — runtime-agnostic message-broker contract.
+//! `message-broker-pattern` — the reusable message-broker pattern.
 //!
 //! Provides the [`MessageBroker`]/[`Validator`] traits, the message/stream/error
 //! value types, and the `*Request`/`*Response` DTOs. Zero implementation of any
-//! named backend — see `message-broker-pattern-core` for this pattern's own
-//! default (no-op) implementation, and `message-broker-svc` for technology-specific
-//! backends (NATS, Kafka, Postgres).
+//! kind — a single-responsibility interface package, not a "contract" layer
+//! bundled alongside a reference implementation or a facade. Both the no-op
+//! reference implementation and the technology-specific backends (NATS, Kafka,
+//! Postgres), along with the facade that selects among them, live in
+//! `message-broker-svc` instead.
 //!
 //! Ported from `edge-message-broker` per edge-message-broker#6.
 
@@ -23,4 +25,4 @@ pub use dto::{
 pub use error::{BrokerError, ValidationError};
 pub use traits::{MessageBroker, Validator};
 pub use types::{BrokerFuture, MessageStream};
-pub use vo::{BackendKind, Message};
+pub use vo::Message;

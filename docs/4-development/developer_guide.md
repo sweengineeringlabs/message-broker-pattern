@@ -12,12 +12,23 @@ message-broker-pattern/
 │   ├── 3-design/adr/ADR-001-contract-core-saf-split.md
 │   └── 4-development/README.md, developer_guide.md   # this file
 └── scm/
-    ├── Cargo.toml          # workspace: [main/message-broker/{contract,core,saf}]
-    └── main/message-broker/
-        ├── contract/       # message-broker-pattern-contract -- traits/types, zero implementation
-        ├── core/            # message-broker-pattern-core -- NoopMessageBroker/NoopValidator/MessageBrokerConfig
-        └── saf/              # message-broker-pattern-saf -- BrokerSvc facade
+    ├── Cargo.toml          # [package] message-broker-pattern -- a single crate,
+    │                       #  not a workspace
+    ├── main/src/
+    │   ├── lib.rs
+    │   ├── traits/          # MessageBroker, Validator
+    │   ├── vo/               # Message
+    │   ├── dto/              # *Request/*Response
+    │   ├── error/            # BrokerError, ValidationError
+    │   └── types/            # BrokerFuture, MessageStream
+    └── tests/                 # message_int_test.rs, message_stream_int_test.rs,
+                                #  message_broker_int_test.rs, broker_error_int_test.rs
 ```
+
+Matches `configbuilder`'s own single-crate layout (`[package]` directly in
+`scm/Cargo.toml`, `path = "main/src/lib.rs"`, tests at `scm/tests/`) — this repo was a
+three-crate `contract`/`core`/`saf` workspace originally; see ADR-001's amendment for
+why it collapsed to one.
 
 ## Branching and Releases
 
@@ -28,59 +39,30 @@ message-broker-pattern/
   `message-broker-svc`) resolve this repo via `git`, `branch = "dev"`, until a tag cut
   happens.
 
-## Working on Any Crate
-
-`contract`, `core`, and `saf` are members of `scm/Cargo.toml`, so from `scm/`:
+## Working on This Crate
 
 ```
-cargo test --workspace --all-targets
-cargo clippy --workspace --all-targets -- -D warnings
+cargo test --all-targets
+cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
 
-Or scope to one crate:
+Dependency footprint is exactly `futures` (structurally required by `MessageStream`'s
+`Stream` bound) and `thiserror` (derive convenience for `BrokerError`/`ValidationError`)
+— verify with `cargo tree --depth 1` after any change that touches `Cargo.toml`; if
+anything else shows up, it's a regression, not a feature. `#![deny(unsafe_code)]` and
+`#![warn(missing_docs)]` are enforced.
 
-```
-cargo test --manifest-path main/message-broker/contract/Cargo.toml --all-targets
-cargo test --manifest-path main/message-broker/core/Cargo.toml --all-targets
-cargo test --manifest-path main/message-broker/saf/Cargo.toml --all-targets
-```
+## No Backend Vocabulary, Ever
 
-`message-broker-pattern-contract` ships zero implementation of `MessageBroker`/
-`Validator` and depends only on the crates its trait signatures actually need
-(`bytes`, `futures`, `serde`, `thiserror`) — `#![deny(unsafe_code)]` and
-`#![warn(missing_docs)]` are enforced across all three crates.
-
-## src/ Layout
-
-`contract`'s `src/` is organized by kind: `traits/`, `vo/`, `dto/`, `error/`, `types/` —
-matching `edge-message-broker`'s own `api/` module names it was extracted from (this
-repo has only one theme, so no theme-then-kind nesting like `wasm-capability-pattern`
-needs). `core` and `saf` are both flat (`core/src/*.rs`, `saf/src/*.rs`).
-
-## No Direct core Import, Anywhere
-
-Enforced, not a style preference: nothing outside `message-broker-pattern-core` itself
-should import `message_broker_pattern_core` directly — always go through
-`message-broker-pattern-saf`'s `BrokerSvc`. `message-broker-svc`'s own `spi` crates are
-the one exception (they need `MessageBrokerConfig` from `core` to populate the value
-`validator()` returns) — see that repo's own developer guide.
-
-## The path + version Dependency Rule
-
-`message-broker-pattern-core`/`message-broker-pattern-saf` depend on their siblings with
-**both** `path` and `version` set:
-
-```toml
-message-broker-pattern-contract = { path = "../contract", version = "0.1.0" }
-```
-
-`path` resolves locally in-repo (including pre-release, unpublished changes) — `cargo
-publish` strips `path` and resolves purely against the `version` constraint on
-crates.io. A `path`-only dependency makes the crate **unpublishable**: `cargo package`
-fails outright with "all dependencies must have a version requirement specified when
-packaging". Bump every downstream crate's declared version together when an upstream
-crate ships a breaking change.
+Enforced by design, not just convention: this crate must never gain a type that names a
+specific backend technology (an enum listing `Nats`/`Kafka`/`Postgres`, a field named
+after one backend's own concept like `group_id`/`queue_name`, anything of that shape).
+That vocabulary — `BackendKind`, `MessageBrokerConfig` — lives entirely in
+`message-broker-svc-core` instead, and stays a real, zero-cost `enum`/`struct` there,
+not a genericized `String`/`HashMap` stand-in kept here. See ADR-001's amendment for the
+full reasoning: the set of backends is closed and known by whoever builds `-svc`, which
+is exactly when a real enum beats a generic, stringly-typed placeholder.
 
 ## See Also
 

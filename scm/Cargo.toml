@@ -1,7 +1,31 @@
-[workspace]
-resolver = "2"
-members = [
-    "main/message-broker/contract",
-    "main/message-broker/core",
-    "main/message-broker/saf",
-]
+[package]
+name         = "message-broker-pattern"
+version      = "0.1.0"
+edition      = "2021"
+license      = "MIT OR Apache-2.0"
+authors      = ["SWE Engineering Labs"]
+repository   = "https://github.com/sweengineeringlabs/message-broker-pattern"
+rust-version = "1.98"
+description  = "Generic, domain-agnostic message-broker pattern: MessageBroker/Validator trait shapes + Message/*Request/*Response types. Zero implementation of any kind, zero knowledge of any backend technology -- a single-responsibility interface package. See message-broker-svc for the no-op reference implementation, technology-specific backends, config vocabulary, and facade."
+keywords     = ["message-broker", "pubsub", "pattern", "swe"]
+categories   = ["network-programming", "asynchronous"]
+
+[package.metadata.arch]
+application_type = "port"
+service_type     = "message-broker"
+
+[lib]
+name = "message_broker_pattern"
+path = "main/src/lib.rs"
+
+[dependencies]
+futures   = "0.3"
+thiserror = "2.0"
+
+[lints.rust]
+unsafe_code  = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

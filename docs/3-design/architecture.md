@@ -2,81 +2,93 @@
 
 ## Overview
 
-Three crates — contract, core, and saf:
+One crate, `message-broker-pattern` — the `MessageBroker`/`Validator` traits and the
+minimal vocabulary their signatures require, zero implementation, zero knowledge of any
+backend technology:
 
-- **`message-broker-pattern-contract`** (`scm/main/message-broker/contract`) — the
-  trait/type surface: `MessageBroker`, `Validator`, `Message`, `BackendKind`, the
-  `*Request`/`*Response` DTOs, `BrokerError`/`ValidationError`, `BrokerFuture`/
-  `MessageStream`. Zero implementation of any named backend.
-- **`message-broker-pattern-core`** (`scm/main/message-broker/core`) — the one default
-  implementation this pattern ships itself: `NoopMessageBroker`/`NoopValidator` (no
-  external technology dependency), plus `MessageBrokerConfig` — the `[message_broker]`
-  config vocabulary and its cross-field validation (`Validator`/`OptionalSection`
-  impls). `MessageBrokerConfig` lives here, not in `contract`, precisely because those
-  impls are real logic and a real `configbuilder` dependency, not a zero-implementation
-  contract shape.
-- **`message-broker-pattern-saf`** (`scm/main/message-broker/saf`) — the facade:
-  `BrokerSvc`, the sole construction seam. A consumer depends on `contract` + `saf`
-  alone and never imports `core` directly — enforced, not a convention left to
-  discipline.
+- **`traits/`** — `MessageBroker` (`publish`/`subscribe`/`health_check`/`validator`),
+  `Validator` (`validate`).
+- **`vo/`** — `Message` (payload + headers), the currency the trait passes around.
+- **`dto/`** — `PublishRequest`/`SubscribeRequest`/`SubscribeResponse`/
+  `HealthCheckRequest`/`ValidatorRequest`/`ValidatorResponse`/`ValidationRequest`.
+- **`error/`** — `BrokerError`, `ValidationError`.
+- **`types/`** — `BrokerFuture` (the async return type every `MessageBroker` method
+  uses — needs only `std::future::Future`), `MessageStream` (needs `futures::Stream`
+  directly, since Rust's `std` doesn't stabilize a stream trait yet).
 
-Everything else — a technology-specific `MessageBroker` implementation (NATS, Kafka,
-Postgres) — belongs in
-[`message-broker-svc`](https://github.com/sweengineeringlabs/message-broker-svc) instead.
-This repo has no knowledge of, and no dependency on, any of its consumers.
+Everything that would make this crate aware of a specific technology — a no-op
+reference implementation, real NATS/Kafka/Postgres backends, the config vocabulary for
+selecting among them, and the facade that dispatches to one — lives in
+[`message-broker-svc`](https://github.com/sweengineeringlabs/message-broker-svc)
+instead. This repo has no knowledge of, and no dependency on, any of it.
 
 ## Component Diagram
 
 ```mermaid
 flowchart TD
-    subgraph pattern["message-broker-pattern"]
-        saf["message-broker-pattern-saf<br/>BrokerSvc"]
-        contract["message-broker-pattern-contract<br/>MessageBroker, Validator, Message, BackendKind"]
-        core["message-broker-pattern-core<br/>NoopMessageBroker, NoopValidator, MessageBrokerConfig"]
-        core -->|implements| contract
-        saf -->|constructs| core
-        saf -->|returns| contract
+    subgraph pattern["message-broker-pattern (this repo)"]
+        traits["traits<br/>MessageBroker, Validator"]
+        vo["vo<br/>Message"]
+        dto["dto<br/>*Request/*Response"]
+        error["error<br/>BrokerError, ValidationError"]
+        types["types<br/>BrokerFuture, MessageStream"]
     end
 
     subgraph svc["message-broker-svc"]
-        svcsaf["message-broker-svc-saf<br/>MessageBrokerFactory"]
-        nats["message-broker-pattern-nats-spi"]
-        kafka["message-broker-pattern-kafka-spi"]
-        postgres["message-broker-pattern-postgres-spi"]
+        core["message-broker-svc-core<br/>NoopMessageBroker, NoopValidator,<br/>BackendKind, MessageBrokerConfig"]
+        spi["message-broker-svc-{nats,kafka,postgres}-spi"]
+        saf["message-broker-svc-saf<br/>MessageBrokerFactory"]
     end
 
-    nats -.->|depends on| contract
-    kafka -.->|depends on| contract
-    postgres -.->|depends on| contract
-    nats -.->|depends on| core
-    kafka -.->|depends on| core
-    postgres -.->|depends on| core
-    svcsaf -.->|wires| nats
-    svcsaf -.->|wires| kafka
-    svcsaf -.->|wires| postgres
+    core -.->|implements| traits
+    spi -.->|implements| traits
+    core -.->|depends on| vo
+    core -.->|depends on| dto
+    saf -.->|wires| core
+    saf -.->|wires| spi
 ```
 
-## Why `BrokerFuture` and `Message`'s constructors live in `contract`
+## Why the dependency footprint is exactly `futures` + `thiserror`
 
-`BrokerFuture<'a, T>` (the async return type every `MessageBroker` method uses) and
-`Message` (the pub/sub payload type) both need an inherent `impl` — `BrokerFuture::new`/
+A pure trait/type crate isn't obligated to have zero dependencies — only zero
+dependencies its type *signatures* don't structurally require. Two things earn their
+place:
+
+- **`futures`** — `MessageStream`'s definition (`Pin<Box<dyn Stream<...>>>`) names
+  `futures::Stream` directly. The type alias can't exist without it. `BrokerFuture`
+  itself needs nothing beyond `std::future::Future`.
+- **`thiserror`** — derive-macro convenience for `BrokerError`/`ValidationError`'s
+  `Display`/`Error` impls. Boilerplate, not domain logic — the same category
+  `wasm-capability-pattern-contract` itself accepts (a hand-written `PartialEq`, in
+  that case).
+
+Everything else this crate depended on before — `bytes` (a convenience constructor
+parameter, retyped to `impl Into<Vec<u8>>`) and `serde` (only needed by `BackendKind`,
+which no longer lives here) — dropped entirely. See ADR-001's amendment for the full
+reasoning, including why `BackendKind` was removed rather than genericized.
+
+## Why `BrokerFuture` and `Message`'s constructors live here, in this crate
+
+`BrokerFuture<'a, T>` and `Message` both need an inherent `impl` — `BrokerFuture::new`/
 its `Future` impl, and `Message::new`/`Message::with_headers`. Rust requires an inherent
-impl to live in the same crate as the type it's implementing on, so both stay in
-`contract` alongside their struct declarations, rather than split into `core` the way
-`edge-message-broker`'s single-crate `api`/`core` module split allowed. This mirrors
+impl to live in the same crate as the type it's implementing on. This mirrors
 `wasm-capability-pattern-contract`'s own precedent (a hand-written `PartialEq` on its one
 `entity` type, in that same crate) — a contract/port crate can hold small, structural
 `impl`s; "zero implementation" means it implements none of *its own* primary traits
 (`MessageBroker`/`Validator`), not that the `impl` keyword never appears.
 
-## Extraction from `edge-message-broker`
+## History
 
 Ported from `edge-message-broker`'s single-crate `main/src/{api,core,saf}` module tree
-per [edge-message-broker#6](https://github.com/sweengineeringlabs/edge-message-broker/issues/6).
-One thing was deliberately **not** ported: `spi/broker_backend.rs`'s `BrokerBackend`
-marker type. It was `pub(crate)`, referenced nowhere outside its own file, and its own
-test file (`broker_backend_int_test.rs`) didn't actually exercise it either — dead code
-kept alive only by a `dead_code`-lint workaround. This repo's target shape
-(`contract`/`core`/`saf`, no `spi` layer) has no slot for it either.
+per [edge-message-broker#6](https://github.com/sweengineeringlabs/edge-message-broker/issues/6),
+initially as a three-crate `contract`/`core`/`saf` split mirroring `wasm-capability-pattern`.
+Flattened to this single crate, with `core`/`saf`/`BackendKind`/`MessageBrokerConfig` all
+moved into `message-broker-svc`, per ADR-001's amendment — see that document for the full
+reasoning.
+
+`spi/broker_backend.rs`'s `BrokerBackend` marker type was never ported at all: it was
+`pub(crate)` in the original single crate, referenced nowhere outside its own file, and
+its own test file didn't actually exercise it either — dead code kept alive only by a
+`dead_code`-lint workaround.
 
 [← Docs index](../README.md)

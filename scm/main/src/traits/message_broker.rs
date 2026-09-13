@@ -8,9 +8,8 @@ use crate::{
 /// Cross-process publish/subscribe broker contract.
 ///
 /// Implement this trait to plug in any broker backend — an in-process broker,
-/// a network message bus, or a custom transport. `message-broker-pattern-core`
-/// ships the no-op reference broker; production backends are constructed by
-/// `message-broker-svc`.
+/// a network message bus, or a custom transport. `message-broker-svc` ships
+/// both the no-op reference broker and production backends.
 ///
 /// # Publish semantics
 ///

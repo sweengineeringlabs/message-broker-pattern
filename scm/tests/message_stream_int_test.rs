@@ -1,6 +1,6 @@
 //! Integration tests for [`MessageStream`] type alias.
 
-use message_broker_pattern_contract::MessageStream;
+use message_broker_pattern::MessageStream;
 
 /// @covers: MessageStream — type alias is usable as a function argument
 #[test]

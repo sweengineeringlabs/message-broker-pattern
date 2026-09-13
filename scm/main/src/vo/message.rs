@@ -2,8 +2,6 @@
 
 use std::collections::HashMap;
 
-use bytes::Bytes;
-
 /// A message payload with optional metadata headers.
 ///
 /// `Message` is the currency passed between producers and consumers.  It
@@ -13,7 +11,7 @@ use bytes::Bytes;
 /// # Examples
 ///
 /// ```rust
-/// use message_broker_pattern_contract::Message;
+/// use message_broker_pattern::Message;
 ///
 /// // Simple payload — no headers.
 /// let msg = Message::new(b"order.created:{\"id\":1}".as_ref());
@@ -37,17 +35,17 @@ pub struct Message {
 
 impl Message {
     /// Construct a message from raw bytes with no headers.
-    pub fn new(payload: impl Into<Bytes>) -> Self {
+    pub fn new(payload: impl Into<Vec<u8>>) -> Self {
         Self {
-            payload: payload.into().to_vec(),
+            payload: payload.into(),
             headers: HashMap::new(),
         }
     }
 
     /// Construct a message with headers.
-    pub fn with_headers(payload: impl Into<Bytes>, headers: HashMap<String, String>) -> Self {
+    pub fn with_headers(payload: impl Into<Vec<u8>>, headers: HashMap<String, String>) -> Self {
         Self {
-            payload: payload.into().to_vec(),
+            payload: payload.into(),
             headers,
         }
     }

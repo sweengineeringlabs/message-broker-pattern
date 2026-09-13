@@ -1,6 +1,6 @@
 //! Integration tests for [`MessageBroker`] trait object safety.
 
-use message_broker_pattern_contract::MessageBroker;
+use message_broker_pattern::MessageBroker;
 
 /// @covers: MessageBroker — trait is object safe
 #[test]
