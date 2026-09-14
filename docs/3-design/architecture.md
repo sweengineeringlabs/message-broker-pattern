@@ -10,7 +10,10 @@ implementation, zero knowledge of any backend technology:
 - **`traits/`** — `MessageBroker` (`publish`/`subscribe`/`health_check`/`validator`),
   `TaskQueue` (`enqueue`/`dequeue`/`health_check`), `TaskQueueFactoryContract`
   (`new_task_id`/`build_handle`), `Validator` (`validate(request)` — backend config
-  validation), `PayloadValidator` (`validate(&self)` — generic self-validation, distinct
+  validation — plus two default methods, `validate_config`/`validator_response`, built
+  purely from `validate` and this crate's own types; see "Why `validate_config`/
+  `validator_response` are default methods on `Validator` itself" below),
+  `PayloadValidator` (`validate(&self)` — generic self-validation, distinct
   from `Validator`).
 - **`vo/`** — `Message` (payload + headers, the currency `MessageBroker` passes around),
   `Task`/`TaskHandle`/`TaskHandleBuilder`/`TaskId` (the equivalent currency for
@@ -47,9 +50,9 @@ flowchart TD
     end
 
     subgraph svc["message-broker-svc"]
-        core["message-broker-svc-core<br/>NoopMessageBroker, NoopValidator"]
-        spi["message-broker-svc-{inmemory,nats,kafka,postgres}-spi<br/>*MessageBroker + *TaskQueue (no postgres TaskQueue)"]
-        saf["message-broker-svc-saf<br/>MessageBrokerFactory, TaskQueueFactory"]
+        core["message-broker-svc-core<br/>InMemoryMessageBroker + InMemoryTaskQueue (technology-free, not an spi)"]
+        spi["message-broker-svc-{nats,kafka,postgres}-spi<br/>*MessageBroker + *TaskQueue (no postgres TaskQueue)"]
+        saf["message-broker-svc-saf<br/>MessageBrokerFactory, TaskQueueFactory,<br/>NoopMessageBroker, NoopValidator"]
     end
 
     core -.->|implements| traits
@@ -93,6 +96,46 @@ own precedent (a hand-written `PartialEq` on its one `entity` type, in that same
 — a contract/port crate can hold small, structural `impl`s; "zero implementation" means
 it implements none of *its own* primary traits (`MessageBroker`/`TaskQueue`/
 `Validator`/`PayloadValidator`), not that the `impl` keyword never appears.
+
+## Why `validate_config`/`validator_response` are default methods on `Validator` itself
+
+Every backend's `MessageBroker::validator()` implementation
+(`NatsMessageBroker`, `KafkaMessageBroker`, `PostgresMessageBroker`,
+`InMemoryMessageBroker`, `NoopMessageBroker`, all in `message-broker-svc`)
+needs the same two operations: map its own `Validator::validate` result into
+a `BrokerError` before doing any I/O, and wrap `Arc<Self>` as a type-erased
+`ValidatorResponse`. Every `Validator` implementor's own `validate` body is
+genuinely backend-specific (that stays a required method), but the two
+operations built on top of it are byte-for-byte identical for every
+implementor and touch nothing but `validate` itself plus this crate's own
+`BrokerError`/`ValidationRequest`/`ValidatorResponse` — no backend-technology
+vocabulary, no external dependency.
+
+That made them `message-broker-svc-spi-shared`'s `ValidatorExt` at first: an
+extension trait, kept out of this crate on the assumption that "zero
+implementation" ruled out defining any real logic here. That assumption
+didn't hold once the logic was checked: this crate's own precedent
+(`TaskQueueFactoryContract`, and the "small structural `impl`" carve-out in
+"Why `BrokerFuture`/`Message`/`Task`-family constructors live here, in this
+crate" above) already establishes that "zero implementation" means "this
+crate implements none of `Validator`/`MessageBroker`/`TaskQueue`/
+`PayloadValidator` *for any concrete type*" — not "no default method body
+may ever appear in a trait declared here." `validate_config`/
+`validator_response` don't implement `Validator` for anything; they're
+default methods *on* `Validator`, exactly the same shape `Iterator::count`
+is a default method built from `next` in `std`. Rust supports this cleanly:
+`validator_response(self: &Arc<Self>) -> ValidatorResponse where Self: Sized
++ 'static` is excluded from `Validator`'s vtable by its own `Sized` bound,
+so `Arc<dyn Validator>` (used by `ValidatorResponse` itself) keeps working
+unmodified.
+
+Moved here directly (`message-broker-pattern` v0.1.3) rather than as a
+separate `ValidatorExt` trait — no extension trait needed once the methods
+live on `Validator` itself, so `message-broker-svc-spi-shared` was deleted
+outright, not kept as a re-export. See
+[message-broker-svc#3](https://github.com/sweengineeringlabs/message-broker-svc/issues/3)
+for the review this settled, and that repo's own architecture doc for the
+consumer-side half of this change.
 
 ## History
 

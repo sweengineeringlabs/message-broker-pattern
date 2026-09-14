@@ -24,6 +24,6 @@ Alphabetized list of terms used in `message-broker-pattern`.
 
 **TaskQueueFactoryContract** - Contract for types that mint fresh `TaskId`s and construct `TaskHandleBuilder`s (`new_task_id`/`build_handle`).
 
-**Validator** - Backend config validation trait (`fn validate(&self, request: ValidationRequest) -> Result<(), ValidationError>`), distinct from `PayloadValidator`. The trait `MessageBroker::validator()` returns a handle to.
+**Validator** - Backend config validation trait (`fn validate(&self, request: ValidationRequest) -> Result<(), ValidationError>`), distinct from `PayloadValidator`. The trait `MessageBroker::validator()` returns a handle to. Also provides `validate_config`/`validator_response` as default methods, built purely from `validate` and this crate's own types — every `Validator` implementor gets them for free.
 
 [← Docs index](README.md)

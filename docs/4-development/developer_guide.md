@@ -41,9 +41,13 @@ ADR-001's first amendment for why it collapsed to one.
 - `main` gets fast-forwarded to `dev` after a shipped change, not on every commit.
 - Pre-1.0 SemVer: a breaking change bumps the minor version.
 - Published to crates.io as [`message-broker-pattern`](https://crates.io/crates/message-broker-pattern),
-  currently v0.1.2 (`TaskQueue`/`PayloadValidator` and the `custom_validator` example were
-  purely additive 0.1.0 → 0.1.2 bumps), tagged to match in this repo's own git history.
-  Downstream consumers (e.g. `message-broker-svc`) depend on it by version, not `git`.
+  currently v0.1.3 (`TaskQueue`/`PayloadValidator` and the `custom_validator` example were
+  purely additive 0.1.0 → 0.1.2 bumps; `Validator::validate_config`/`validator_response`
+  as default methods, moved from `message-broker-svc-spi-shared` — see architecture.md's
+  "Why `validate_config`/`validator_response` are default methods on `Validator` itself"
+  — was another purely additive bump, 0.1.2 → 0.1.3), tagged to match in this repo's own
+  git history. Downstream consumers (e.g. `message-broker-svc`) depend on it by version,
+  not `git`.
 
 ## Working on This Crate
 
