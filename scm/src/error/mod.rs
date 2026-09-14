@@ -1,7 +1,9 @@
-//! Error types — broker error definitions.
+//! Error types — broker and queue error definitions.
 
 pub(crate) mod broker_error;
+pub(crate) mod queue_error;
 pub(crate) mod validation_error;
 
 pub use broker_error::BrokerError;
+pub use queue_error::QueueError;
 pub use validation_error::ValidationError;

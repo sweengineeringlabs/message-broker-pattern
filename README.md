@@ -1,14 +1,15 @@
 # message-broker-pattern
 
-> **TLDR:** The reusable message-broker pattern — `MessageBroker`/`Validator` traits and
-> the minimal vocabulary they require, zero implementation, zero knowledge of any
+> **TLDR:** The reusable message-broker pattern — every primitive of this domain,
+> `MessageBroker` and `TaskQueue` alike, zero implementation, zero knowledge of any
 > backend technology. See [Architecture](docs/3-design/architecture.md) for the full
 > design.
 
-A single crate, not a workspace, not a broker deployment. Implement `MessageBroker` to
-plug in any backend; this repo ships none — see
+A single crate, not a workspace, not a broker deployment. Implement `MessageBroker`/
+`TaskQueue` to plug in any backend; this repo ships neither — see
 [`message-broker-svc`](https://github.com/sweengineeringlabs/message-broker-svc) for a
-no-op reference broker and real NATS/Kafka/Postgres backends.
+no-op reference broker and real NATS/Kafka/Postgres backends. A consumer depends on this
+crate plus `message-broker-svc` and defines no primitives of its own.
 
 ## Quick Start
 
@@ -24,21 +25,26 @@ async fn check(broker: &dyn MessageBroker) -> Result<(), message_broker_pattern:
 
 | Module | What it is |
 |--------|------------|
-| `traits/` | `MessageBroker`, `Validator` |
-| `vo/` | `Message` |
+| `traits/` | `MessageBroker`, `TaskQueue`, `TaskQueueFactoryContract`, `Validator` (backend config validation), `PayloadValidator` (generic self-validation) |
+| `vo/` | `Message`, `Task`, `TaskHandle`, `TaskHandleBuilder`, `TaskId` |
 | `dto/` | `*Request`/`*Response` types |
-| `error/` | `BrokerError`, `ValidationError` |
-| `types/` | `BrokerFuture`, `MessageStream` |
+| `error/` | `BrokerError`, `QueueError`, `ValidationError` |
+| `types/` | `BrokerFuture`, `MessageStream`, marker constants (`VALIDATOR_SVC`, `TASK_QUEUE_FACTORY_CONTRACT_ID`, `MAX_TASK_PAYLOAD_BYTES`, `TASK_ID_HEADER_KEY`) |
 
 Extracted from [`edge-message-broker`](https://github.com/sweengineeringlabs/edge-message-broker)
 per [edge-message-broker#6](https://github.com/sweengineeringlabs/edge-message-broker/issues/6).
 Originally a three-crate `contract`/`core`/`saf` split mirroring
 [`wasm-capability-pattern`](https://github.com/sweengineeringlabs/wasm-capability-pattern);
 flattened to this single crate, with `core`/`saf` moved to `message-broker-svc` and all
-backend-selection vocabulary (`BackendKind`, `MessageBrokerConfig`) deleted outright, not
-relocated — see ADR-001's amendments. `cargo test`, `cargo fmt --check`, and `cargo
-clippy --all-targets -- -D warnings` all clean; dependency footprint is exactly
-`futures` + `thiserror`.
+backend-selection vocabulary (`BackendKind`, `MessageBrokerConfig`,
+`ApplicationConfig`/`BrokerBackendConfig`/`ConfigProvider`) deleted outright, not
+relocated — a contract crate declares what a backend *is*, never how a specific
+application chooses or configures one. `TaskQueue` and its value types were initially
+left behind in `edge-runtime`'s own local copy of this contract; that was incomplete
+migration, not a scope decision — they belong here alongside `MessageBroker`, so a
+consumer gets the whole domain from one place instead of half of it redefined
+downstream. `cargo test`, `cargo fmt --check`, and `cargo clippy --all-targets -- -D
+warnings` all clean; dependency footprint is `bytes` + `futures` + `thiserror` + `uuid`.
 
 ## Documentation
 
