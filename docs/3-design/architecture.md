@@ -46,8 +46,8 @@ flowchart TD
 
     subgraph svc["message-broker-svc"]
         core["message-broker-svc-core<br/>NoopMessageBroker, NoopValidator"]
-        spi["message-broker-svc-{inmemory,nats,kafka,postgres}-spi"]
-        saf["message-broker-svc-saf<br/>MessageBrokerFactory"]
+        spi["message-broker-svc-{inmemory,nats,kafka,postgres}-spi<br/>*MessageBroker + *TaskQueue (no postgres TaskQueue)"]
+        saf["message-broker-svc-saf<br/>MessageBrokerFactory, TaskQueueFactory"]
     end
 
     core -.->|implements| traits
@@ -127,9 +127,17 @@ contracts that happened to share a name across two crates that had never been me
 before. Renamed to `PayloadValidator` on arrival to resolve the collision; its
 signature and semantics are otherwise untouched.
 
-`message-broker-svc` does not yet implement `TaskQueue` for any backend — that
-extraction (in-memory/NATS/Kafka `TaskQueue` implementations, currently still living in
-`edge-runtime`'s own `core`/`kafka-spi`/`nats-spi` crates) is tracked separately, not
-part of this change.
+`message-broker-svc` now implements `TaskQueue` too:
+`message-broker-svc-{inmemory,nats,kafka}-spi` each ship a `*TaskQueue` alongside
+their `*MessageBroker` (no `postgres` — that backend never had one), and
+`message-broker-svc-saf`'s `TaskQueueFactory` constructs them, mirroring
+`MessageBrokerFactory`'s own shape — see that repo's own architecture doc. With
+that landed, `edge-runtime`'s local `core`/`spi/{kafka,nats}` crates held nothing
+but duplicated re-exports of primitives and backends that now live upstream, so
+they were deleted outright rather than kept as pass-throughs.
+`runtime-message-broker-saf` is the only crate `edge-runtime` has left in this
+domain, depending on this crate and `message-broker-svc-*-spi` directly — a
+consumer gets this domain's whole primitive set and every real backend from two
+published repos, none of it redefined downstream.
 
 [← Docs index](../README.md)
