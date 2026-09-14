@@ -1,6 +1,6 @@
 [package]
 name         = "message-broker-pattern"
-version      = "0.1.1"
+version      = "0.1.2"
 edition      = "2021"
 license      = "MIT OR Apache-2.0"
 authors      = ["SWE Engineering Labs"]
@@ -26,6 +26,10 @@ uuid      = { version = "1.23", features = ["v4"] }
 
 [dev-dependencies]
 tokio = { version = "1.52", features = ["rt-multi-thread", "macros"] }
+
+[[example]]
+name = "custom_validator"
+path = "examples/custom_validator.rs"
 
 [lints.rust]
 unsafe_code  = "deny"
