@@ -1,8 +1,11 @@
 # 3-design
 
+**Audience**: Architects, technical leads, contributors.
+
 | Document | Description |
 |----------|--------------|
-| [architecture.md](architecture.md) | Component diagram, why the dependency footprint is exactly `futures`+`thiserror`, why `BrokerFuture`/`Message`'s constructors live in this crate |
-| [adr/ADR-001-contract-core-saf-split.md](adr/ADR-001-contract-core-saf-split.md) | Full design record: the original split from `edge-message-broker`, and the amendment flattening to one crate + removing `BackendKind`/`MessageBrokerConfig` |
+| [architecture.md](architecture.md) | Component diagram, why the dependency footprint is `bytes`+`futures`+`thiserror`+`uuid`, why `TaskQueue` lives here alongside `MessageBroker`, why constructors for `BrokerFuture`/`Message`/`Task`-family types live in this crate |
+| [compliance/compliance_checklist.md](compliance/compliance_checklist.md) | Architecture compliance checklist derived from architecture.md |
+| [adr/README.md](adr/README.md) | ADR index |
 
 [← Docs index](../README.md)

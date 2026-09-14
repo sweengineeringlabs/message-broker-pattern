@@ -1,5 +1,7 @@
 # message-broker-pattern Architecture
 
+**Audience**: Architects, technical leads, contributors.
+
 ## Overview
 
 One crate, `message-broker-pattern` — every primitive of this domain, zero

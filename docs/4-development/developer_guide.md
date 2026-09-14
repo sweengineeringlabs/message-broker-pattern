@@ -1,5 +1,7 @@
 # message-broker-pattern Developer Guide
 
+**Audience**: Developers, contributors.
+
 ## Repo Structure
 
 ```
@@ -7,22 +9,25 @@ message-broker-pattern/
 ├── README.md
 ├── docs/
 │   ├── README.md                                 # docs section index
+│   ├── glossary.md                                # domain terminology
 │   ├── 0-ideation/papers/README.md
 │   ├── 3-design/README.md, architecture.md
-│   ├── 3-design/adr/ADR-001-contract-core-saf-split.md
+│   ├── 3-design/compliance/compliance_checklist.md
+│   ├── 3-design/adr/README.md, ADR-001-contract-core-saf-split.md
 │   └── 4-development/README.md, developer_guide.md   # this file
 └── scm/
     ├── Cargo.toml          # [package] message-broker-pattern -- a single crate,
     │                       #  not a workspace
+    ├── examples/            # custom_validator.rs
     ├── src/
     │   ├── lib.rs
-    │   ├── traits/          # MessageBroker, Validator
-    │   ├── vo/               # Message
+    │   ├── traits/          # MessageBroker, TaskQueue, TaskQueueFactoryContract,
+    │   │                     #  Validator, PayloadValidator
+    │   ├── vo/               # Message, Task, TaskHandle, TaskHandleBuilder, TaskId
     │   ├── dto/              # *Request/*Response
-    │   ├── error/            # BrokerError, ValidationError
-    │   └── types/            # BrokerFuture, MessageStream
-    └── tests/                 # message_int_test.rs, message_stream_int_test.rs,
-                                #  message_broker_int_test.rs, broker_error_int_test.rs
+    │   ├── error/            # BrokerError, QueueError, ValidationError
+    │   └── types/            # BrokerFuture, MessageStream, marker constants
+    └── tests/                 # one *_int_test.rs per public trait/type
 ```
 
 `src/` and `tests/` are direct siblings under `scm/` — no `main/` intermediate directory
@@ -35,9 +40,10 @@ ADR-001's first amendment for why it collapsed to one.
 - `dev` is the default branch; all work lands there first.
 - `main` gets fast-forwarded to `dev` after a shipped change, not on every commit.
 - Pre-1.0 SemVer: a breaking change bumps the minor version.
-- Published to crates.io as [`message-broker-pattern`](https://crates.io/crates/message-broker-pattern)
-  v0.1.0, tagged `v0.1.0` in this repo's own git history. Downstream consumers (e.g.
-  `message-broker-svc`) depend on it by version, not `git`.
+- Published to crates.io as [`message-broker-pattern`](https://crates.io/crates/message-broker-pattern),
+  currently v0.1.2 (`TaskQueue`/`PayloadValidator` and the `custom_validator` example were
+  purely additive 0.1.0 → 0.1.2 bumps), tagged to match in this repo's own git history.
+  Downstream consumers (e.g. `message-broker-svc`) depend on it by version, not `git`.
 
 ## Working on This Crate
 
@@ -47,11 +53,13 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
 
-Dependency footprint is exactly `futures` (structurally required by `MessageStream`'s
-`Stream` bound) and `thiserror` (derive convenience for `BrokerError`/`ValidationError`)
-— verify with `cargo tree --depth 1` after any change that touches `Cargo.toml`; if
-anything else shows up, it's a regression, not a feature. `#![deny(unsafe_code)]` and
-`#![warn(missing_docs)]` are enforced.
+Dependency footprint is `bytes` (`Task`/`TaskHandle`/`TaskHandleBuilder`'s `payload`
+field), `futures` (structurally required by `MessageStream`'s `Stream` bound and
+`TaskHandle`'s `ack`/`nack` futures), `thiserror` (derive convenience for
+`BrokerError`/`QueueError`/`ValidationError`), and `uuid` (`TaskId` wraps `Uuid`
+directly) — verify with `cargo tree --depth 1` after any change that touches
+`Cargo.toml`; if anything else shows up, it's a regression, not a feature.
+`#![deny(unsafe_code)]` and `#![warn(missing_docs)]` are enforced.
 
 ## No Backend Vocabulary, Ever
 
