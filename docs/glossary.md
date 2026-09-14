@@ -10,19 +10,10 @@ Alphabetized list of terms used in `message-broker-pattern`.
 
 **MessageStream** - Type alias for the stream a `MessageBroker::subscribe` call returns (`Pin<Box<dyn Stream<Item = Result<Message, BrokerError>> + Send>>`).
 
-**PayloadValidator** - Generic self-validation trait (`fn validate(&self) -> Result<(), String>`), distinct from `Validator`. Used to validate arbitrary values, such as a task's payload before it enters a `TaskQueue`.
-
-**Task** - The unit of exchange for `TaskQueue`: a payload plus optional metadata headers, addressed by a unique `TaskId`.
-
-**TaskHandle** - Returned by `TaskQueue::dequeue`. Carries the dequeued task's payload/headers plus `ack`/`nack` futures the consumer must call exactly one of.
-
-**TaskHandleBuilder** - Fluent builder for `TaskHandle`, used by implementors that construct one without depending on its concrete fields directly.
-
-**TaskId** - Unique identifier for a `Task`, wrapping a `Uuid`.
-
-**TaskQueue** - Competing-consumer work queue contract: `enqueue`/`dequeue`/`health_check`. Unlike `MessageBroker`, delivers each message to exactly one competing consumer, not every subscriber.
-
-**TaskQueueFactoryContract** - Contract for types that mint fresh `TaskId`s and construct `TaskHandleBuilder`s (`new_task_id`/`build_handle`).
+**TaskQueue**, **Task**, **TaskHandle**, **TaskHandleBuilder**, **TaskId**,
+**TaskQueueFactoryContract**, **PayloadValidator**, **QueueError** - moved to
+[`task-queue-pattern`](https://github.com/sweengineeringlabs/task-queue-pattern)
+(SRP — see `docs/3-design/adr/ADR-002`). See that repo's own glossary.
 
 **Validator** - Backend config validation trait (`fn validate(&self, request: ValidationRequest) -> Result<(), ValidationError>`), distinct from `PayloadValidator`. The trait `MessageBroker::validator()` returns a handle to. Also provides `validate_config`/`validator_response` as default methods, built purely from `validate` and this crate's own types — every `Validator` implementor gets them for free.
 

@@ -13,22 +13,25 @@ message-broker-pattern/
 │   ├── 0-ideation/papers/README.md
 │   ├── 3-design/README.md, architecture.md
 │   ├── 3-design/compliance/compliance_checklist.md
-│   ├── 3-design/adr/README.md, ADR-001-contract-core-saf-split.md
+│   ├── 3-design/adr/README.md, ADR-001-contract-core-saf-split.md,
+│   │                     ADR-002-split-task-queue-into-its-own-crate.md
 │   └── 4-development/README.md, developer_guide.md   # this file
 └── scm/
     ├── Cargo.toml          # [package] message-broker-pattern -- a single crate,
     │                       #  not a workspace
-    ├── examples/            # custom_validator.rs
     ├── src/
     │   ├── lib.rs
-    │   ├── traits/          # MessageBroker, TaskQueue, TaskQueueFactoryContract,
-    │   │                     #  Validator, PayloadValidator
-    │   ├── vo/               # Message, Task, TaskHandle, TaskHandleBuilder, TaskId
+    │   ├── traits/          # MessageBroker, Validator
+    │   ├── vo/               # Message
     │   ├── dto/              # *Request/*Response
-    │   ├── error/            # BrokerError, QueueError, ValidationError
-    │   └── types/            # BrokerFuture, MessageStream, marker constants
+    │   ├── error/            # BrokerError, ValidationError
+    │   └── types/            # BrokerFuture, MessageStream
     └── tests/                 # one *_int_test.rs per public trait/type
 ```
+
+No `examples/` directory — `custom_validator.rs` moved to `task-queue-pattern`
+alongside `PayloadValidator`/`TaskHandleBuilder`, the primitives it
+demonstrated.
 
 `src/` and `tests/` are direct siblings under `scm/` — no `main/` intermediate directory
 (flattened further than `configbuilder`'s own `main/src/` layout; see ADR-001's amendment
@@ -40,14 +43,16 @@ ADR-001's first amendment for why it collapsed to one.
 - `dev` is the default branch; all work lands there first.
 - `main` gets fast-forwarded to `dev` after a shipped change, not on every commit.
 - Pre-1.0 SemVer: a breaking change bumps the minor version.
-- Published to crates.io as [`message-broker-pattern`](https://crates.io/crates/message-broker-pattern),
-  currently v0.1.3 (`TaskQueue`/`PayloadValidator` and the `custom_validator` example were
-  purely additive 0.1.0 → 0.1.2 bumps; `Validator::validate_config`/`validator_response`
-  as default methods, moved from `message-broker-svc-spi-shared` — see architecture.md's
-  "Why `validate_config`/`validator_response` are default methods on `Validator` itself"
-  — was another purely additive bump, 0.1.2 → 0.1.3), tagged to match in this repo's own
-  git history. Downstream consumers (e.g. `message-broker-svc`) depend on it by version,
-  not `git`.
+- Currently v0.2.0 (git-tagged; not yet published to crates.io at this version —
+  the last published version, v0.1.2, predates both `Validator::validate_config`/
+  `validator_response` and this version's breaking `TaskQueue` removal).
+  `TaskQueue`/`PayloadValidator` and the `custom_validator` example were purely
+  additive `0.1.0 → 0.1.2` bumps; `Validator::validate_config`/`validator_response`
+  as default methods (moved from `message-broker-svc-spi-shared`) was another purely
+  additive bump, `0.1.2 → 0.1.3`; splitting `TaskQueue` back out into
+  `task-queue-pattern` (see [ADR-002](../3-design/adr/ADR-002-split-task-queue-into-its-own-crate.md))
+  is this crate's first *breaking* change, `0.1.3 → 0.2.0`. Downstream consumers
+  needing `TaskQueue` now depend on `task-queue-pattern` separately.
 
 ## Working on This Crate
 
@@ -57,13 +62,13 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
 
-Dependency footprint is `bytes` (`Task`/`TaskHandle`/`TaskHandleBuilder`'s `payload`
-field), `futures` (structurally required by `MessageStream`'s `Stream` bound and
-`TaskHandle`'s `ack`/`nack` futures), `thiserror` (derive convenience for
-`BrokerError`/`QueueError`/`ValidationError`), and `uuid` (`TaskId` wraps `Uuid`
-directly) — verify with `cargo tree --depth 1` after any change that touches
-`Cargo.toml`; if anything else shows up, it's a regression, not a feature.
-`#![deny(unsafe_code)]` and `#![warn(missing_docs)]` are enforced.
+Dependency footprint is `futures` (structurally required by `MessageStream`'s
+`Stream` bound) and `thiserror` (derive convenience for
+`BrokerError`/`ValidationError`) — verify with `cargo tree --depth 1` after any
+change that touches `Cargo.toml`; if anything else shows up, it's a regression,
+not a feature. `bytes`/`uuid` left with `TaskQueue` when it moved to
+`task-queue-pattern`. `#![deny(unsafe_code)]` and `#![warn(missing_docs)]` are
+enforced.
 
 ## No Backend Vocabulary, Ever
 
@@ -84,4 +89,6 @@ the boundary, one independent type per backend, not a single shared type anywher
 
 - [Architecture](../3-design/architecture.md)
 - [ADR-001](../3-design/adr/ADR-001-contract-core-saf-split.md)
+- [ADR-002](../3-design/adr/ADR-002-split-task-queue-into-its-own-crate.md)
 - [Docs index](../README.md)
+- [Pattern/Svc Workflow](https://github.com/sweengineeringlabs/template-engine/blob/main/pattern_svc_workflow.md)

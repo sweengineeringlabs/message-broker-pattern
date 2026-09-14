@@ -4,28 +4,27 @@
 
 ## Overview
 
-One crate, `message-broker-pattern` — every primitive of this domain, zero
+One crate, `message-broker-pattern` — this domain's one primitive, zero
 implementation, zero knowledge of any backend technology:
 
 - **`traits/`** — `MessageBroker` (`publish`/`subscribe`/`health_check`/`validator`),
-  `TaskQueue` (`enqueue`/`dequeue`/`health_check`), `TaskQueueFactoryContract`
-  (`new_task_id`/`build_handle`), `Validator` (`validate(request)` — backend config
+  `Validator` (`validate(request)` — backend config
   validation — plus two default methods, `validate_config`/`validator_response`, built
   purely from `validate` and this crate's own types; see "Why `validate_config`/
-  `validator_response` are default methods on `Validator` itself" below),
-  `PayloadValidator` (`validate(&self)` — generic self-validation, distinct
-  from `Validator`).
-- **`vo/`** — `Message` (payload + headers, the currency `MessageBroker` passes around),
-  `Task`/`TaskHandle`/`TaskHandleBuilder`/`TaskId` (the equivalent currency for
-  `TaskQueue`).
+  `validator_response` are default methods on `Validator` itself" below).
+- **`vo/`** — `Message` (payload + headers, the currency `MessageBroker` passes around).
 - **`dto/`** — `PublishRequest`/`SubscribeRequest`/`SubscribeResponse`/
   `HealthCheckRequest`/`ValidatorRequest`/`ValidatorResponse`/`ValidationRequest`.
-- **`error/`** — `BrokerError`, `QueueError`, `ValidationError`.
+- **`error/`** — `BrokerError`, `ValidationError`.
 - **`types/`** — `BrokerFuture` (the async return type every `MessageBroker` method
   uses — needs only `std::future::Future`), `MessageStream` (needs `futures::Stream`
-  directly, since Rust's `std` doesn't stabilize a stream trait yet), and marker
-  constants (`VALIDATOR_SVC`, `TASK_QUEUE_FACTORY_CONTRACT_ID`,
-  `MAX_TASK_PAYLOAD_BYTES`, `TASK_ID_HEADER_KEY`).
+  directly, since Rust's `std` doesn't stabilize a stream trait yet).
+
+`TaskQueue` (competing-consumer work queue — a different delivery semantic,
+different consumers, different evolution drivers from `MessageBroker`'s own
+fan-out/broadcast) lives in a separate crate,
+[`task-queue-pattern`](https://github.com/sweengineeringlabs/task-queue-pattern)
+— see "Why `TaskQueue` moved out (SRP)" below.
 
 Everything that would make this crate aware of a specific technology — a no-op
 reference implementation, real NATS/Kafka/Postgres backends, and the facade that
@@ -42,17 +41,17 @@ one.
 ```mermaid
 flowchart TD
     subgraph pattern["message-broker-pattern (this repo)"]
-        traits["traits<br/>MessageBroker, TaskQueue,<br/>TaskQueueFactoryContract,<br/>Validator, PayloadValidator"]
-        vo["vo<br/>Message, Task, TaskHandle,<br/>TaskHandleBuilder, TaskId"]
+        traits["traits<br/>MessageBroker, Validator"]
+        vo["vo<br/>Message"]
         dto["dto<br/>*Request/*Response"]
-        error["error<br/>BrokerError, QueueError, ValidationError"]
-        types["types<br/>BrokerFuture, MessageStream, constants"]
+        error["error<br/>BrokerError, ValidationError"]
+        types["types<br/>BrokerFuture, MessageStream"]
     end
 
     subgraph svc["message-broker-svc"]
-        core["message-broker-svc-core<br/>InMemoryMessageBroker + InMemoryTaskQueue (technology-free, not an spi)"]
-        spi["message-broker-svc-{nats,kafka,postgres}-spi<br/>*MessageBroker + *TaskQueue (no postgres TaskQueue)"]
-        saf["message-broker-svc-saf<br/>MessageBrokerFactory, TaskQueueFactory,<br/>NoopMessageBroker, NoopValidator"]
+        core["message-broker-svc-core<br/>InMemoryMessageBroker (technology-free, not an spi)"]
+        spi["message-broker-svc-{nats,kafka,postgres}-spi<br/>*MessageBroker"]
+        saf["message-broker-svc-saf<br/>MessageBrokerFactory,<br/>NoopMessageBroker, NoopValidator"]
     end
 
     core -.->|implements| traits
@@ -63,39 +62,40 @@ flowchart TD
     saf -.->|wires| spi
 ```
 
-## Why the dependency footprint is `bytes` + `futures` + `thiserror` + `uuid`
+`TaskQueue` and its own primitive set (`Task`/`TaskHandle`/`TaskHandleBuilder`/
+`TaskId`/`QueueError`/`PayloadValidator`/`TaskQueueFactoryContract`) live in the
+separate `task-queue-pattern`/`task-queue-svc` repo pair — not shown above,
+see that repo pair's own architecture doc.
+
+## Why the dependency footprint is `futures` + `thiserror`
 
 A pure trait/type crate isn't obligated to have zero dependencies — only zero
-dependencies its type *signatures* don't structurally require. Four things earn their
+dependencies its type *signatures* don't structurally require. Two things earn their
 place:
 
-- **`bytes`** — `Task`/`TaskHandle`/`TaskHandleBuilder`'s `payload` field is `Bytes`
-  directly (not retyped to `impl Into<Vec<u8>>`), matching how `TaskQueue`
-  implementations actually carry payloads.
 - **`futures`** — `MessageStream`'s definition (`Pin<Box<dyn Stream<...>>>`) names
-  `futures::Stream` directly, and `TaskHandle`/`TaskHandleBuilder`'s `ack`/`nack`
-  fields are `BoxFuture<'static, Result<(), QueueError>>`. `BrokerFuture` itself needs
+  `futures::Stream` directly. `BrokerFuture` itself needs
   nothing beyond `std::future::Future`.
-- **`thiserror`** — derive-macro convenience for `BrokerError`/`QueueError`/
+- **`thiserror`** — derive-macro convenience for `BrokerError`/
   `ValidationError`'s `Display`/`Error` impls. Boilerplate, not domain logic — the same
   category `wasm-capability-pattern-contract` itself accepts (a hand-written
   `PartialEq`, in that case).
-- **`uuid`** — `TaskId` wraps `Uuid` directly and generates one via `Uuid::new_v4()`.
 
+`bytes` and `uuid` (needed only by `Task`/`TaskHandle`/`TaskId`) left with `TaskQueue`
+when it moved to `task-queue-pattern` — see "Why `TaskQueue` moved out (SRP)" below.
 `serde` (only needed by `BackendKind`, which never lives here) stays out entirely. See
 ADR-001's amendment for why `BackendKind`/`MessageBrokerConfig` were removed rather
 than genericized.
 
-## Why `BrokerFuture`/`Message`/`Task`-family constructors live here, in this crate
+## Why `BrokerFuture`/`Message` constructors live here, in this crate
 
-`BrokerFuture<'a, T>`, `Message`, `TaskId`, `Task`, `TaskHandle`, and
-`TaskHandleBuilder` each need an inherent `impl` — constructors, `Display`, and
+`BrokerFuture<'a, T>` and `Message` each need an inherent `impl` — constructors and
 `BrokerFuture`'s own `Future` impl. Rust requires an inherent impl to live in the same
 crate as the type it's implementing on. This mirrors `wasm-capability-pattern-contract`'s
 own precedent (a hand-written `PartialEq` on its one `entity` type, in that same crate)
 — a contract/port crate can hold small, structural `impl`s; "zero implementation" means
-it implements none of *its own* primary traits (`MessageBroker`/`TaskQueue`/
-`Validator`/`PayloadValidator`), not that the `impl` keyword never appears.
+it implements none of *its own* primary traits (`MessageBroker`/`Validator`), not that
+the `impl` keyword never appears.
 
 ## Why `validate_config`/`validator_response` are default methods on `Validator` itself
 
@@ -115,12 +115,12 @@ That made them `message-broker-svc-spi-shared`'s `ValidatorExt` at first: an
 extension trait, kept out of this crate on the assumption that "zero
 implementation" ruled out defining any real logic here. That assumption
 didn't hold once the logic was checked: this crate's own precedent
-(`TaskQueueFactoryContract`, and the "small structural `impl`" carve-out in
-"Why `BrokerFuture`/`Message`/`Task`-family constructors live here, in this
-crate" above) already establishes that "zero implementation" means "this
-crate implements none of `Validator`/`MessageBroker`/`TaskQueue`/
-`PayloadValidator` *for any concrete type*" — not "no default method body
-may ever appear in a trait declared here." `validate_config`/
+(`task-queue-pattern`'s own `TaskQueueFactoryContract`, and the "small
+structural `impl`" carve-out in "Why `BrokerFuture`/`Message` constructors
+live here, in this crate" above) already establishes that "zero
+implementation" means "this crate implements none of
+`Validator`/`MessageBroker` *for any concrete type*" — not "no default
+method body may ever appear in a trait declared here." `validate_config`/
 `validator_response` don't implement `Validator` for anything; they're
 default methods *on* `Validator`, exactly the same shape `Iterator::count`
 is a default method built from `next` in `std`. Rust supports this cleanly:
@@ -136,6 +136,36 @@ outright, not kept as a re-export. See
 [message-broker-svc#3](https://github.com/sweengineeringlabs/message-broker-svc/issues/3)
 for the review this settled, and that repo's own architecture doc for the
 consumer-side half of this change.
+
+## Why `TaskQueue` moved out (SRP)
+
+`TaskQueue` (competing-consumer — each task goes to exactly one worker) and
+`MessageBroker` (fan-out/broadcast — every subscriber gets every message)
+arrived in this crate from the same source pilot and were bundled together
+specifically so "a consumer gets this domain's whole primitive set from one
+crate" — see "`TaskQueue`'s belated migration" below for that original
+reasoning, preserved as history, not rewritten.
+
+Revisited: that reasoning weighed migration-completeness, not single
+responsibility. `MessageBroker` and `TaskQueue` have genuinely different
+evolution drivers (pub/sub concerns — topic wildcards, ordering — vs. queue
+concerns — visibility timeout, retry, dead-letter handling) and different
+consumers (some want broadcast, some want a work queue, not all want
+both). Shared origin was never shared responsibility. See
+[ADR-002](adr/ADR-002-split-task-queue-into-its-own-crate.md) and
+[Pattern/Svc Workflow](https://github.com/sweengineeringlabs/template-engine/blob/main/pattern_svc_workflow.md)'s
+own "Single Responsibility" section, written to capture this exact decision
+generically.
+
+`TaskQueue`, `TaskQueueFactoryContract`, `PayloadValidator`,
+`Task`/`TaskHandle`/`TaskHandleBuilder`/`TaskId`, `QueueError`, and the four
+marker constants (`VALIDATOR_SVC`, `TASK_QUEUE_FACTORY_CONTRACT_ID`,
+`MAX_TASK_PAYLOAD_BYTES`, `TASK_ID_HEADER_KEY`) moved to
+[`task-queue-pattern`](https://github.com/sweengineeringlabs/task-queue-pattern)
+unchanged — every moved test and the `custom_validator` example were
+verified to still pass, with only `use` paths changed. `bytes`/`uuid` left
+this crate's own dependency list alongside them (nothing remaining here
+needs either). Breaking change, pre-1.0 minor bump: `0.1.3 → 0.2.0`.
 
 ## History
 
@@ -153,9 +183,16 @@ its own test file didn't actually exercise it either — dead code kept alive on
 
 ## `TaskQueue`'s belated migration
 
+**Amendment**: `TaskQueue` and everything below no longer live in this crate as of
+[ADR-002](adr/ADR-002-split-task-queue-into-its-own-crate.md) — moved to
+[`task-queue-pattern`](https://github.com/sweengineeringlabs/task-queue-pattern)
+for SRP; see "Why `TaskQueue` moved out (SRP)" above. This section is
+preserved as the historical record of how `TaskQueue` first arrived here,
+not rewritten to pretend it never did.
+
 `TaskQueue`, `TaskQueueFactoryContract`, `Task`/`TaskHandle`/`TaskHandleBuilder`/
 `TaskId`, `QueueError`, the payload-validation trait (`PayloadValidator`, renamed on
-arrival — see below), and the marker constants now live here, but didn't from the
+arrival — see below), and the marker constants lived here, but didn't from the
 start. `edge-runtime`'s own port of this crate's original content
 (`runtime-message-broker-contract`, later renamed `-pattern`) is a superset that also
 defines `TaskQueue` — a distinct competing-consumer work-queue contract with no

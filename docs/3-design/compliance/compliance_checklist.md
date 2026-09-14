@@ -9,7 +9,7 @@ re-run the listed command after any change and expect the stated result.
 
 | # | Rule | Verify |
 |---|------|--------|
-| 1 | This crate implements none of its own primary traits (`MessageBroker`, `TaskQueue`, `Validator`, `PayloadValidator`) | `grep -rn "^impl MessageBroker for\|^impl TaskQueue for\|^impl Validator for\|^impl PayloadValidator for" scm/src/` returns nothing |
+| 1 | This crate implements none of its own primary traits (`MessageBroker`, `Validator`) | `grep -rn "^impl MessageBroker for\|^impl Validator for" scm/src/` returns nothing |
 | 2 | No no-op or reference implementation lives here | Same as above — `message-broker-svc-saf` owns `NoopMessageBroker` |
 
 ## 2. No backend-technology vocabulary
@@ -25,18 +25,18 @@ re-run the listed command after any change and expect the stated result.
 |---|------|--------|
 | 5 | No config-section name, default-backend value, or `ApplicationConfig`-shaped type | `grep -rn "ApplicationConfig\|BrokerBackendConfig\|ConfigProvider" scm/src/` returns nothing |
 
-## 4. Whole-domain primitive ownership
+## 4. Single responsibility — `MessageBroker` only
 
 | # | Rule | Verify |
 |---|------|--------|
-| 6 | Both `MessageBroker` and `TaskQueue` (and their full value/error/DTO types) live here — neither is partially redefined downstream | `cargo doc --no-deps` and confirm both trait families appear in the public API |
-| 7 | `TaskQueue`'s own belated migration (see architecture.md, "`TaskQueue`'s belated migration") does not recur — no primitive is ever left behind in a downstream consumer's local copy | Manual review on any future extraction |
+| 6 | `TaskQueue` and its own primitive set (`Task`/`TaskHandle`/`TaskHandleBuilder`/`TaskId`/`QueueError`/`PayloadValidator`/`TaskQueueFactoryContract`) do not live here — they belong to `task-queue-pattern` (SRP, see ADR-002) | `grep -rn "TaskQueue\|PayloadValidator\|QueueError\|TaskHandle\|TaskId\b" scm/src/` returns nothing outside doc-comment prose pointing to `task-queue-pattern` |
+| 7 | No primitive that belongs to a different responsibility is added here "for consumer convenience" without a fresh SRP check against [Pattern/Svc Workflow](https://github.com/sweengineeringlabs/template-engine/blob/main/pattern_svc_workflow.md)'s own test | Manual review on any future addition |
 
 ## 5. Dependency footprint
 
 | # | Rule | Verify |
 |---|------|--------|
-| 8 | Dependency footprint stays exactly `bytes` + `futures` + `thiserror` + `uuid` | `cargo tree --depth 1` after any `Cargo.toml` change — anything else is a regression |
+| 8 | Dependency footprint stays exactly `futures` + `thiserror` | `cargo tree --depth 1` after any `Cargo.toml` change — anything else is a regression |
 
 ## 6. Lint gates
 

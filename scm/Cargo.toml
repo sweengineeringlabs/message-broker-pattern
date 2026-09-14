@@ -1,12 +1,12 @@
 [package]
 name         = "message-broker-pattern"
-version      = "0.1.3"
+version      = "0.2.0"
 edition      = "2021"
 license      = "MIT OR Apache-2.0"
 authors      = ["SWE Engineering Labs"]
 repository   = "https://github.com/sweengineeringlabs/message-broker-pattern"
 rust-version = "1.98"
-description  = "Generic, domain-agnostic message-broker pattern: MessageBroker/TaskQueue/Validator/PayloadValidator trait shapes + Message/Task/TaskHandle/*Request/*Response types. Zero implementation of any kind, zero knowledge of any backend technology -- a single-responsibility interface package. See message-broker-svc for the no-op reference implementation, technology-specific backends, config vocabulary, and facade."
+description  = "Generic, domain-agnostic message-broker pattern: MessageBroker/Validator trait shapes + Message/*Request/*Response types. Zero implementation of any kind, zero knowledge of any backend technology -- a single-responsibility interface package. TaskQueue lives in the separate task-queue-pattern crate (SRP). See message-broker-svc for the no-op reference implementation, technology-specific backends, config vocabulary, and facade."
 keywords     = ["message-broker", "pubsub", "pattern", "swe"]
 categories   = ["network-programming", "asynchronous"]
 
@@ -19,17 +19,10 @@ name = "message_broker_pattern"
 path = "src/lib.rs"
 
 [dependencies]
-bytes     = "1"
 futures   = "0.3"
 thiserror = "2.0"
-uuid      = { version = "1.23", features = ["v4"] }
 
 [dev-dependencies]
-tokio = { version = "1.52", features = ["rt-multi-thread", "macros"] }
-
-[[example]]
-name = "custom_validator"
-path = "examples/custom_validator.rs"
 
 [lints.rust]
 unsafe_code  = "deny"
