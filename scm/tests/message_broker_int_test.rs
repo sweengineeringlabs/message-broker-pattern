@@ -1,9 +1,9 @@
-//! Integration tests for [`MessageBroker`] trait object safety.
+//! Integration tests for [`MessageBroker`]'s zero-cost shape.
 
 use message_broker_pattern::MessageBroker;
 
-/// @covers: MessageBroker — trait is object safe
-#[test]
-fn test_message_broker_is_object_safe() {
-    fn _check(_: &dyn MessageBroker) {}
-}
+/// @covers: MessageBroker — usable as a generic bound (the RPITIT-compatible
+/// replacement for the old object-safety check; `MessageBroker` is no
+/// longer object-safe by design, see docs/3-design/architecture.md).
+#[allow(dead_code)]
+fn _assert_usable_as_generic_bound<T: MessageBroker>() {}

@@ -25,7 +25,7 @@ message-broker-pattern/
     │   ├── vo/               # Message
     │   ├── dto/              # *Request/*Response
     │   ├── error/            # BrokerError, ValidationError
-    │   └── types/            # BrokerFuture, MessageStream
+    │   └── types/            # MessageStream
     └── tests/                 # one *_int_test.rs per public trait/type
 ```
 

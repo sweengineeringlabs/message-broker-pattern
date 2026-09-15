@@ -4,9 +4,7 @@ Alphabetized list of terms used in `message-broker-pattern`.
 
 ---
 
-**BrokerFuture** - Boxed, pinned future type every `MessageBroker` method returns (`Pin<Box<dyn Future<Output = T> + Send>>`). Needs only `std::future::Future`.
-
-**MessageBroker** - Cross-process publish/subscribe contract: `publish`/`subscribe`/`health_check`/`validator`. Fans out every published message to every active subscriber of the same topic.
+**MessageBroker** - Cross-process publish/subscribe contract: `publish`/`subscribe`/`health_check`/`validator`. Fans out every published message to every active subscriber of the same topic. `publish`/`subscribe`/`health_check` return `impl Future` (RPITIT), not a boxed future — zero-cost, at the cost of object safety; see `docs/3-design/architecture.md`'s "Why `MessageBroker` returns `impl Future`, not `BrokerFuture`".
 
 **MessageStream** - Type alias for the stream a `MessageBroker::subscribe` call returns (`Pin<Box<dyn Stream<Item = Result<Message, BrokerError>> + Send>>`).
 

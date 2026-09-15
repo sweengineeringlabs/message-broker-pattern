@@ -20,6 +20,12 @@
 //! for the general principle this split follows.
 //!
 //! Ported from `edge-message-broker` per edge-message-broker#6.
+//!
+//! `MessageBroker`'s async methods return `impl Future` (RPITIT), not a
+//! boxed future — zero-cost, no heap allocation or vtable dispatch per
+//! call, at the cost of object safety (no `Box<dyn MessageBroker>`). See
+//! `docs/3-design/architecture.md`'s "Why `MessageBroker` returns `impl
+//! Future`, not `BrokerFuture`" section.
 
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
@@ -35,5 +41,5 @@ pub use dto::{
 };
 pub use error::{BrokerError, ValidationError};
 pub use traits::{MessageBroker, Validator};
-pub use types::{BrokerFuture, MessageStream};
+pub use types::MessageStream;
 pub use vo::Message;

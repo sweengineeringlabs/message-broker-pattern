@@ -1,8 +1,10 @@
 //! [`MessageBroker`] — runtime-agnostic cross-process pub/sub contract.
 
+use std::future::Future;
+
 use crate::{
-    BrokerError, BrokerFuture, HealthCheckRequest, PublishRequest, SubscribeRequest,
-    SubscribeResponse, ValidatorRequest, ValidatorResponse,
+    BrokerError, HealthCheckRequest, PublishRequest, SubscribeRequest, SubscribeResponse,
+    ValidatorRequest, ValidatorResponse,
 };
 
 /// Cross-process publish/subscribe broker contract.
@@ -24,23 +26,37 @@ use crate::{
 /// established.  Messages published before [`subscribe`] is called are not
 /// delivered.
 ///
+/// # Zero-cost by construction
+///
+/// `publish`/`subscribe`/`health_check` return `impl Future` (RPITIT), not a
+/// boxed future — no heap allocation, no vtable dispatch, on every call.
+/// This means `MessageBroker` is not object-safe: there is no
+/// `Box<dyn MessageBroker>`/`&dyn MessageBroker`. `message-broker-svc`
+/// resolves the resulting need for one uniform, runtime-selectable broker
+/// type via a static-dispatch enum (`AnyMessageBroker`), not by clawing
+/// object safety back onto this trait — see that repo's own
+/// `docs/3-design/architecture.md`.
+///
 /// [`subscribe`]: MessageBroker::subscribe
 pub trait MessageBroker: Send + Sync {
     /// Publish `request.message` to `request.topic`, delivering it to all
     /// active subscribers.
-    fn publish<'a>(&'a self, request: PublishRequest) -> BrokerFuture<'a, Result<(), BrokerError>>;
+    fn publish(
+        &self,
+        request: PublishRequest,
+    ) -> impl Future<Output = Result<(), BrokerError>> + Send + '_;
 
     /// Subscribe to `request.topic`, returning a stream of incoming messages.
-    fn subscribe<'a>(
-        &'a self,
+    fn subscribe(
+        &self,
         request: SubscribeRequest,
-    ) -> BrokerFuture<'a, Result<SubscribeResponse, BrokerError>>;
+    ) -> impl Future<Output = Result<SubscribeResponse, BrokerError>> + Send + '_;
 
     /// Probe broker connectivity. Returns `Ok(())` if the broker is reachable.
     fn health_check(
         &self,
         request: HealthCheckRequest,
-    ) -> BrokerFuture<'_, Result<(), BrokerError>>;
+    ) -> impl Future<Output = Result<(), BrokerError>> + Send + '_;
 
     /// Return a handle to this broker's own config validator, so a caller can
     /// revalidate a live broker's configuration (e.g. for health dashboards or

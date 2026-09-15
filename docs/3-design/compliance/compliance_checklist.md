@@ -32,19 +32,25 @@ re-run the listed command after any change and expect the stated result.
 | 6 | `TaskQueue` and its own primitive set (`Task`/`TaskHandle`/`TaskHandleBuilder`/`TaskId`/`QueueError`/`PayloadValidator`/`TaskQueueFactoryContract`) do not live here — they belong to `task-queue-pattern` (SRP, see ADR-002) | `grep -rn "TaskQueue\|PayloadValidator\|QueueError\|TaskHandle\|TaskId\b" scm/src/` returns nothing outside doc-comment prose pointing to `task-queue-pattern` |
 | 7 | No primitive that belongs to a different responsibility is added here "for consumer convenience" without a fresh SRP check against [Pattern/Svc Workflow](https://github.com/sweengineeringlabs/template-engine/blob/main/pattern_svc_workflow.md)'s own test | Manual review on any future addition |
 
-## 5. Dependency footprint
+## 5. Zero-cost by construction
 
 | # | Rule | Verify |
 |---|------|--------|
-| 8 | Dependency footprint stays exactly `futures` + `thiserror` | `cargo tree --depth 1` after any `Cargo.toml` change — anything else is a regression |
+| 8 | `MessageBroker`'s async methods return `impl Future`, never a boxed future | `grep -n "Pin<Box<dyn Future\|BrokerFuture" scm/src/traits/message_broker.rs` returns nothing |
 
-## 6. Lint gates
+## 6. Dependency footprint
 
 | # | Rule | Verify |
 |---|------|--------|
-| 9 | `#![deny(unsafe_code)]` enforced | `cargo build` fails on any `unsafe` block |
-| 10 | `#![warn(missing_docs)]` enforced | `cargo doc --no-deps` warns on any undocumented public item |
-| 11 | `cargo clippy --all-targets -- -D warnings` clean | Run before every commit |
-| 12 | `cargo fmt --check` clean | Run before every commit |
+| 9 | Dependency footprint stays exactly `futures` + `thiserror` | `cargo tree --depth 1` after any `Cargo.toml` change — anything else is a regression |
+
+## 7. Lint gates
+
+| # | Rule | Verify |
+|---|------|--------|
+| 10 | `#![deny(unsafe_code)]` enforced | `cargo build` fails on any `unsafe` block |
+| 11 | `#![warn(missing_docs)]` enforced | `cargo doc --no-deps` warns on any undocumented public item |
+| 12 | `cargo clippy --all-targets -- -D warnings` clean | Run before every commit |
+| 13 | `cargo fmt --check` clean | Run before every commit |
 
 [← 3-design index](../README.md)

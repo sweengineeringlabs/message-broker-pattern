@@ -16,9 +16,10 @@ implementation, zero knowledge of any backend technology:
 - **`dto/`** — `PublishRequest`/`SubscribeRequest`/`SubscribeResponse`/
   `HealthCheckRequest`/`ValidatorRequest`/`ValidatorResponse`/`ValidationRequest`.
 - **`error/`** — `BrokerError`, `ValidationError`.
-- **`types/`** — `BrokerFuture` (the async return type every `MessageBroker` method
-  uses — needs only `std::future::Future`), `MessageStream` (needs `futures::Stream`
-  directly, since Rust's `std` doesn't stabilize a stream trait yet).
+- **`types/`** — `MessageStream` (needs `futures::Stream` directly, since Rust's
+  `std` doesn't stabilize a stream trait yet). `MessageBroker`'s own methods
+  return `impl Future` directly (RPITIT) rather than a local future wrapper —
+  see "Why `MessageBroker` returns `impl Future`, not `BrokerFuture`" below.
 
 `TaskQueue` (competing-consumer work queue — a different delivery semantic,
 different consumers, different evolution drivers from `MessageBroker`'s own
@@ -45,7 +46,7 @@ flowchart TD
         vo["vo<br/>Message"]
         dto["dto<br/>*Request/*Response"]
         error["error<br/>BrokerError, ValidationError"]
-        types["types<br/>BrokerFuture, MessageStream"]
+        types["types<br/>MessageStream"]
     end
 
     subgraph svc["message-broker-svc"]
@@ -74,8 +75,9 @@ dependencies its type *signatures* don't structurally require. Two things earn t
 place:
 
 - **`futures`** — `MessageStream`'s definition (`Pin<Box<dyn Stream<...>>>`) names
-  `futures::Stream` directly. `BrokerFuture` itself needs
-  nothing beyond `std::future::Future`.
+  `futures::Stream` directly. `MessageBroker`'s own async methods need
+  nothing beyond `std::future::Future` (see "Why `MessageBroker` returns
+  `impl Future`, not `BrokerFuture`" below).
 - **`thiserror`** — derive-macro convenience for `BrokerError`/
   `ValidationError`'s `Display`/`Error` impls. Boilerplate, not domain logic — the same
   category `wasm-capability-pattern-contract` itself accepts (a hand-written
@@ -87,15 +89,38 @@ when it moved to `task-queue-pattern` — see "Why `TaskQueue` moved out (SRP)" 
 ADR-001's amendment for why `BackendKind`/`MessageBrokerConfig` were removed rather
 than genericized.
 
-## Why `BrokerFuture`/`Message` constructors live here, in this crate
+## Why `MessageBroker` returns `impl Future`, not `BrokerFuture`
 
-`BrokerFuture<'a, T>` and `Message` each need an inherent `impl` — constructors and
-`BrokerFuture`'s own `Future` impl. Rust requires an inherent impl to live in the same
-crate as the type it's implementing on. This mirrors `wasm-capability-pattern-contract`'s
-own precedent (a hand-written `PartialEq` on its one `entity` type, in that same crate)
-— a contract/port crate can hold small, structural `impl`s; "zero implementation" means
-it implements none of *its own* primary traits (`MessageBroker`/`Validator`), not that
-the `impl` keyword never appears.
+Until `message-broker-pattern` v0.3.0, `publish`/`subscribe`/`health_check` each
+returned `BrokerFuture<'a, T>`, a local wrapper around
+`Pin<Box<dyn Future<Output = T> + Send + 'a>>`. Raised as a real, checked zero-cost
+abstraction question in
+[message-broker-pattern#3](https://github.com/sweengineeringlabs/message-broker-pattern/issues/3):
+a boxed future costs a heap allocation on every single call, on a trait whose whole
+point is being called constantly (every publish, every subscribe, every health
+check). Rust's return-position `impl Future` in traits (RPITIT, stable since 1.75)
+removes that allocation entirely — no box, no vtable, statically dispatched,
+inlinable — at a real, accepted cost: `MessageBroker` is no longer object-safe,
+there is no `Box<dyn MessageBroker>`/`&dyn MessageBroker` anymore.
+
+That loss is not absorbed silently. `message-broker-svc` had a genuine reason to
+want one uniform, runtime-selectable broker type — a deployment picking NATS vs.
+Kafka vs. Postgres from config without recompiling — so it resolves this with a
+static-dispatch enum (`AnyMessageBroker`, one variant per backend, `match`-and-
+delegate) instead of clawing object safety back onto this trait. That keeps the
+"one factory, one uniform return type" ergonomics `MessageBrokerFactory`'s callers
+already relied on, without paying for a vtable to get it. See that repo's own
+`docs/3-design/architecture.md` for the full reasoning and implementation.
+
+## Why `Message` constructors live here, in this crate
+
+`Message` needs an inherent `impl` — its constructors. Rust requires an inherent
+impl to live in the same crate as the type it's implementing on. This mirrors
+`wasm-capability-pattern-contract`'s own precedent (a hand-written `PartialEq` on
+its one `entity` type, in that same crate) — a contract/port crate can hold small,
+structural `impl`s; "zero implementation" means it implements none of *its own*
+primary traits (`MessageBroker`/`Validator`), not that the `impl` keyword never
+appears.
 
 ## Why `validate_config`/`validator_response` are default methods on `Validator` itself
 
@@ -116,8 +141,8 @@ extension trait, kept out of this crate on the assumption that "zero
 implementation" ruled out defining any real logic here. That assumption
 didn't hold once the logic was checked: this crate's own precedent
 (`task-queue-pattern`'s own `TaskQueueFactoryContract`, and the "small
-structural `impl`" carve-out in "Why `BrokerFuture`/`Message` constructors
-live here, in this crate" above) already establishes that "zero
+structural `impl`" carve-out in "Why `Message` constructors live here, in
+this crate" above) already establishes that "zero
 implementation" means "this crate implements none of
 `Validator`/`MessageBroker` *for any concrete type*" — not "no default
 method body may ever appear in a trait declared here." `validate_config`/
