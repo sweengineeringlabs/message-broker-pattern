@@ -22,10 +22,15 @@ pair — split out for SRP, see
 ```rust
 use message_broker_pattern::{HealthCheckRequest, MessageBroker};
 
-async fn check(broker: &dyn MessageBroker) -> Result<(), message_broker_pattern::BrokerError> {
+async fn check(broker: &impl MessageBroker) -> Result<(), message_broker_pattern::BrokerError> {
     broker.health_check(HealthCheckRequest).await
 }
 ```
+
+`&impl MessageBroker`, not `&dyn MessageBroker` — `MessageBroker`'s methods
+return `impl Future` (zero-cost, no boxed future per call), which means the
+trait is not object-safe. See [Architecture](docs/3-design/architecture.md)'s
+"Why `MessageBroker` returns `impl Future`, not `BrokerFuture`".
 
 ## Documentation
 
